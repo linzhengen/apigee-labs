@@ -91,9 +91,10 @@ data "archive_file" "proxy_bundle" {
 # Apigee API プロキシ (バンドルをアップロード)
 # ============================================================
 resource "google_apigee_api" "vertexai_proxy" {
-  org_id        = var.org_id
-  name          = "vertexai-proxy"
-  config_bundle = data.archive_file.proxy_bundle.output_path
+  org_id          = var.org_id
+  name            = "vertexai-proxy"
+  config_bundle   = data.archive_file.proxy_bundle.output_path
+  detect_md5hash  = data.archive_file.proxy_bundle.output_md5
 
   depends_on = [google_project_iam_member.vertexai_proxy_iam]
 }

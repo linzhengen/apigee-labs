@@ -8,14 +8,13 @@
     <URL>${target_url}</URL>
 
     <!--
-      GoogleAuthentication: Apigee ランタイム SA がアクセストークンを自動取得。
+      GoogleIDToken: Cloud Run は OIDC ID トークンで認証する。
+      Audience にはターゲットの Cloud Run サービス URL を指定。
     -->
     <Authentication>
-      <GoogleAccessToken>
-        <Scopes>
-          <Scope>https://www.googleapis.com/auth/cloud-platform</Scope>
-        </Scopes>
-      </GoogleAccessToken>
+      <GoogleIDToken>
+        <Audience>${target_url}</Audience>
+      </GoogleIDToken>
     </Authentication>
   </HTTPTargetConnection>
 </TargetEndpoint>

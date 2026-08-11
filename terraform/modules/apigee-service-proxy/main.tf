@@ -77,7 +77,8 @@ data "archive_file" "proxy_bundle" {
 resource "google_apigee_api" "proxy" {
   org_id        = var.org_id
   name          = "${var.service_name}-proxy"
-  config_bundle = data.archive_file.proxy_bundle.output_path
+  config_bundle  = data.archive_file.proxy_bundle.output_path
+  detect_md5hash = data.archive_file.proxy_bundle.output_md5
 
   depends_on = [google_project_iam_member.run_invoker]
 }

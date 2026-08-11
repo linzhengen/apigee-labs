@@ -10,3 +10,11 @@
 #   2. OAuth 2.0 Client ID を作成 (Application type: Web application)
 #   3. terraform.tfvars に iap_oauth_client_id / iap_oauth_client_secret を設定
 # ============================================================
+
+# IAP サービスアカウントのプロビジョニング
+# Cloud Run + IAP の連携に必要 (gcloud beta services identity create --service=iap.googleapis.com 相当)
+resource "google_project_service_identity" "iap" {
+  provider = google-beta
+  project  = var.project_id
+  service  = "iap.googleapis.com"
+}

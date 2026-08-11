@@ -39,6 +39,7 @@ resource "google_project_service" "apis" {
     "cloudresourcemanager.googleapis.com",
     "dns.googleapis.com",
     "iam.googleapis.com",
+    "aiplatform.googleapis.com",
   ])
   service            = each.value
   disable_on_destroy = false
@@ -171,7 +172,15 @@ module "frontend" {
   image        = var.frontend_image
   ingress      = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
 
-  depends_on = [google_project_service.apis]
+  # IAP SA に Cloud Run invoker 権限を付与 (IAP → Cloud Run 連携に必要)
+  iam_members = [
+    {
+      role   = "roles/run.invoker"
+      member = "serviceAccount:${module.iap.service_account_email}"
+    },
+  ]
+
+  depends_on = [google_project_service.apis, module.iap]
 }
 
 # ============================================================
@@ -186,7 +195,7 @@ module "backend" {
   project_id   = var.project_id
   region       = var.region
   image        = var.backend_image
-  ingress      = "INGRESS_TRAFFIC_INTERNAL_ONLY"
+  ingress      = "INGRESS_TRAFFIC_ALL"
 
   # Direct VPC Egress: backend 専用サブネット
   vpc_access = {
@@ -195,11 +204,11 @@ module "backend" {
     egress     = "PRIVATE_RANGES_ONLY"
   }
 
-  # Apigee cloudservices SA に invoker 権限を付与
+  # Apigee proxy SA に invoker 権限を付与 (IAM で認証・認可を担保)
   iam_members = [
     {
       role   = "roles/run.invoker"
-      member = "serviceAccount:${data.google_project.project.number}@cloudservices.gserviceaccount.com"
+      member = "serviceAccount:apigee-backend-proxy-sa@${var.project_id}.iam.gserviceaccount.com"
     },
   ]
 

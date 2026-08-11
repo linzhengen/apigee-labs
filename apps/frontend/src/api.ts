@@ -5,7 +5,7 @@ export interface Message {
 
 export type ApiBackend = "vertexai" | "backend";
 
-const VERTEXAI_MODEL = "gemini-2.0-flash";
+const VERTEXAI_MODEL = "gemini-2.5-flash";
 const VERTEXAI_URL = `/api/vertexai/v1/models/${VERTEXAI_MODEL}:generateContent`;
 const BACKEND_URL = "/api/backend/v1/chat";
 const REQUEST_TIMEOUT_MS = 30_000;
