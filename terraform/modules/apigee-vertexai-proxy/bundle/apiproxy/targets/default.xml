@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<TargetEndpoint name="default">
+  <HTTPTargetConnection>
+    <!--
+      Vertex AI Endpoint (デフォルト: Global)
+      - リージョン未指定時は locations/global で GCP が最適リージョンに自動ルーティング
+      - リージョン指定時は AM-SetRegionalHost がターゲットホストを
+        {region}-aiplatform.googleapis.com に動的に切り替える
+    -->
+    <URL>https://aiplatform.googleapis.com</URL>
+
+    <!--
+      GoogleAuthentication: Apigee X ランタイム SA のアクセストークンを自動付与
+      対象 SA: service-{PROJECT_NUMBER}@gcp-sa-apigee.iam.gserviceaccount.com
+      必要ロール: roles/aiplatform.user
+    -->
+    <Authentication>
+      <GoogleAccessToken>
+        <Scopes>
+          <Scope>https://www.googleapis.com/auth/cloud-platform</Scope>
+        </Scopes>
+      </GoogleAccessToken>
+    </Authentication>
+  </HTTPTargetConnection>
+</TargetEndpoint>

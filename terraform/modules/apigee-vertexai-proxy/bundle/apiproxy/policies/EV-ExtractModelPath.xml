@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!--
+  受信パスからモデルとアクションを抽出する。
+
+  対応パターン:
+    グローバル:
+      /api/vertexai/v1/models/gemini-2.0-flash:generateContent
+      /api/vertexai/v1beta/models/gemini-1.5-pro:generateContent
+    リージョン指定:
+      /api/vertexai/v1/locations/asia-northeast1/models/gemini-2.0-flash:generateContent
+      /api/vertexai/v1beta/locations/us-central1/models/gemini-1.5-pro:generateContent
+
+  抽出される変数:
+    apiVersion  → "v1" / "v1beta" / "v1alpha"
+    modelAction → "gemini-2.0-flash:generateContent" (model:action 形式)
+    targetRegion → "asia-northeast1" (リージョン指定時のみ設定)
+-->
+<ExtractVariables name="EV-ExtractModelPath">
+  <URIPath>
+    <!-- リージョン指定パターン (先にマッチ) -->
+    <Pattern ignoreCase="true">/api/vertexai/{apiVersion}/locations/{targetRegion}/models/{modelAction}</Pattern>
+    <!-- グローバルパターン -->
+    <Pattern ignoreCase="true">/api/vertexai/{apiVersion}/models/{modelAction}</Pattern>
+  </URIPath>
+  <IgnoreUnresolvedVariables>true</IgnoreUnresolvedVariables>
+</ExtractVariables>

@@ -1,0 +1,83 @@
+name: Frontend - Docker Build & Deploy to Cloud Run
+
+on:
+  push:
+    branches: [main]
+    paths: ["apps/frontend/**"]
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  REGION: ${{ vars.GCP_REGION }}
+  SERVICE_NAME: frontend-service
+  REPOSITORY: docker
+  WORKLOAD_IDENTITY_PROVIDER: ${{ vars.WORKLOAD_IDENTITY_PROVIDER }}
+  SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      # Artifact Registry に Docker リポジトリがなければ作成
+      - name: Ensure Artifact Registry repository
+        run: |
+          gcloud artifacts repositories describe "${REPOSITORY}" \
+            --location="${REGION}" --project="${PROJECT_ID}" 2>/dev/null \
+          || gcloud artifacts repositories create "${REPOSITORY}" \
+            --repository-format=docker \
+            --location="${REGION}" \
+            --project="${PROJECT_ID}" \
+            --description="Application container images"
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+
+      # イメージタグ: git SHA
+      - name: Build and push Docker image
+        working-directory: apps/frontend
+        run: |
+          IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${SERVICE_NAME}"
+          TAG="${GITHUB_SHA::8}"
+
+          docker build \
+            -t "${IMAGE}:${TAG}" \
+            -t "${IMAGE}:latest" \
+            .
+
+          docker push "${IMAGE}:${TAG}"
+          docker push "${IMAGE}:latest"
+
+          echo "IMAGE=${IMAGE}" >> "$GITHUB_ENV"
+          echo "TAG=${TAG}" >> "$GITHUB_ENV"
+
+      # Cloud Run にデプロイ (LB + IAP 経由のみアクセス可能)
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy "${SERVICE_NAME}" \
+            --image="${IMAGE}:${TAG}" \
+            --region="${REGION}" \
+            --project="${PROJECT_ID}" \
+            --ingress=internal-and-cloud-load-balancing \
+            --no-allow-unauthenticated \
+            --quiet
+
+      - name: Summary
+        run: |
+          echo "### Frontend Deployed" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Image**: \`${IMAGE}:${TAG}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Service**: \`${SERVICE_NAME}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Region**: \`${REGION}\`" >> "$GITHUB_STEP_SUMMARY"

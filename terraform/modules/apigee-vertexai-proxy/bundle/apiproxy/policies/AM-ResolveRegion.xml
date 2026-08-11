@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!--
+  targetRegion が未設定 (グローバルパターン) の場合、resolvedRegion を "global" に設定。
+  targetRegion が設定されている場合、resolvedRegion にコピーし、
+  ターゲットホストをリージョナルエンドポイントに切り替える。
+-->
+<AssignMessage name="AM-ResolveRegion">
+  <AssignTo createNew="false" type="request"/>
+  <AssignVariable>
+    <Name>resolvedRegion</Name>
+    <Value>global</Value>
+    <Ref>targetRegion</Ref>
+  </AssignVariable>
+</AssignMessage>

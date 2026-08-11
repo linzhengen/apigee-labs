@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!--
+  Apigee BasePath (/api/{service_name}) を除去し、残りのパスをターゲットに転送。
+
+  変換例:
+    受信: POST /api/{service_name}/v1/chat
+    送信: POST https://{cloud-run-url}/v1/chat
+
+  proxy.pathsuffix には BasePath 以降の部分が自動的に入る。
+-->
+<AssignMessage name="AM-SetTargetPath">
+  <AssignTo createNew="false" type="request"/>
+  <Set>
+    <Path>{proxy.pathsuffix}</Path>
+  </Set>
+</AssignMessage>

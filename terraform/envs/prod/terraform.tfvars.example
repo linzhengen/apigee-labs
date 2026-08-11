@@ -1,0 +1,12 @@
+project_id        = "my-gcp-project"
+region            = "asia-northeast1"
+domain            = "app.example.com"
+iap_support_email = "admin@example.com"
+
+iap_allowed_members = [
+  "user:alice@example.com",
+  "group:engineers@example.com",
+]
+
+frontend_image = "asia-northeast1-docker.pkg.dev/my-gcp-project/repo/frontend:latest"
+backend_image  = "asia-northeast1-docker.pkg.dev/my-gcp-project/repo/backend:latest"

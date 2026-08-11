@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<APIProxy name="vertexai-proxy" revision="1">
+  <Description>Vertex AI Proxy - all models via Global/Regional Endpoint</Description>
+  <BasePaths>/api/vertexai</BasePaths>
+  <Policies>
+    <Policy>AM-RemoveClientAuth</Policy>
+    <Policy>EV-ExtractModelPath</Policy>
+    <Policy>AM-ResolveRegion</Policy>
+    <Policy>AM-SetRegionalHost</Policy>
+    <Policy>AM-SetTargetPath</Policy>
+    <Policy>RF-ModelNotFound</Policy>
+  </Policies>
+  <ProxyEndpoints>
+    <ProxyEndpoint>default</ProxyEndpoint>
+  </ProxyEndpoints>
+  <TargetEndpoints>
+    <TargetEndpoint>default</TargetEndpoint>
+  </TargetEndpoints>
+</APIProxy>

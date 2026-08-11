@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!--
+  モデルパスが抽出できなかった場合 (無効なパス形式) に 404 を返す。
+
+  正しいパス形式:
+    POST /vertexai/v1/models/{model}:{action}
+    POST /vertexai/v1beta/models/{model}:{action}
+-->
+<RaiseFault name="RF-ModelNotFound">
+  <FaultResponse>
+    <Set>
+      <StatusCode>404</StatusCode>
+      <ReasonPhrase>Not Found</ReasonPhrase>
+      <Headers>
+        <Header name="Content-Type">application/json</Header>
+      </Headers>
+      <Payload contentType="application/json"><![CDATA[{
+  "error": {
+    "code": 404,
+    "message": "Model not found. Correct path formats: POST /api/vertexai/v1/models/{model}:generateContent or POST /api/vertexai/v1/locations/{region}/models/{model}:generateContent",
+    "status": "NOT_FOUND"
+  }
+}]]></Payload>
+    </Set>
+  </FaultResponse>
+  <IgnoreUnresolvedVariables>true</IgnoreUnresolvedVariables>
+</RaiseFault>

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<ProxyEndpoint name="default">
+  <HTTPProxyConnection>
+    <BasePath>/api/vertexai</BasePath>
+  </HTTPProxyConnection>
+
+  <PreFlow name="PreFlow">
+    <Request>
+      <!-- クライアントの Authorization ヘッダーと API キーを除去 -->
+      <Step><Name>AM-RemoveClientAuth</Name></Step>
+
+      <!-- パスからモデル・リージョンを抽出 -->
+      <Step><Name>EV-ExtractModelPath</Name></Step>
+
+      <!-- モデルパスが取得できなかった場合は 404 を返す -->
+      <Step>
+        <Name>RF-ModelNotFound</Name>
+        <Condition>modelAction = null OR modelAction = ""</Condition>
+      </Step>
+
+      <!-- targetRegion → resolvedRegion (未設定時は "global") -->
+      <Step><Name>AM-ResolveRegion</Name></Step>
+
+      <!-- リージョン指定時はターゲットホストをリージョナルエンドポイントに切替 -->
+      <Step>
+        <Name>AM-SetRegionalHost</Name>
+        <Condition>targetRegion != null AND targetRegion != ""</Condition>
+      </Step>
+
+      <!-- Vertex AI エンドポイント向けにターゲットパスを設定 -->
+      <Step><Name>AM-SetTargetPath</Name></Step>
+    </Request>
+    <Response/>
+  </PreFlow>
+
+  <RouteRule name="default">
+    <TargetEndpoint>default</TargetEndpoint>
+  </RouteRule>
+</ProxyEndpoint>

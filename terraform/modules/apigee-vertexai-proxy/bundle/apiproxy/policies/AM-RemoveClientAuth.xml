@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!--
+  クライアントが送ってきた認証情報を除去する。
+  Apigee が Vertex AI 向けに独自トークンを付与するため、
+  クライアントの Authorization ヘッダーや API キーは不要かつ危険。
+-->
+<AssignMessage name="AM-RemoveClientAuth">
+  <AssignTo createNew="false" type="request"/>
+  <Remove>
+    <Headers>
+      <Header name="Authorization"/>
+      <Header name="x-goog-api-key"/>
+    </Headers>
+    <QueryParams>
+      <QueryParam name="key"/>
+    </QueryParams>
+  </Remove>
+</AssignMessage>
