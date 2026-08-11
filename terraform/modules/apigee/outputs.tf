@@ -1,6 +1,6 @@
 output "org_id" {
-  description = "Apigee Organization ID"
-  value       = google_apigee_organization.this.id
+  description = "Apigee Organization ID (プレフィックスなし)"
+  value       = google_apigee_organization.this.name
 }
 
 output "instance_host" {

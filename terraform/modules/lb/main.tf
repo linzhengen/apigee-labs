@@ -109,6 +109,18 @@ resource "google_compute_network_endpoint" "apigee" {
   port                   = 443
 }
 
+resource "google_compute_health_check" "apigee" {
+  count = var.apigee_config != null ? 1 : 0
+
+  name    = "${var.name}-apigee-hc"
+  project = var.project_id
+
+  https_health_check {
+    port         = 443
+    request_path = "/healthz/ingress"
+  }
+}
+
 resource "google_compute_backend_service" "apigee" {
   count = var.apigee_config != null ? 1 : 0
 
@@ -117,9 +129,12 @@ resource "google_compute_backend_service" "apigee" {
   protocol              = "HTTPS"
   load_balancing_scheme = "EXTERNAL_MANAGED"
   timeout_sec           = 60
+  health_checks         = [google_compute_health_check.apigee[0].id]
 
   backend {
-    group = google_compute_network_endpoint_group.apigee[0].id
+    group           = google_compute_network_endpoint_group.apigee[0].id
+    balancing_mode  = "RATE"
+    max_rate_per_endpoint = 100
   }
 
   # IAP: iap_config が指定された場合に有効化

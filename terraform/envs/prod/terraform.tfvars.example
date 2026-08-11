@@ -10,7 +10,8 @@ iap_allowed_members = [
   "group:engineers@example.com",
 ]
 
-frontend_image = "asia-northeast1-docker.pkg.dev/my-gcp-project/repo/frontend:latest"
-backend_image  = "asia-northeast1-docker.pkg.dev/my-gcp-project/repo/backend:latest"
+# 初回は未指定 (default: gcr.io/cloudrun/hello)。CI/CD で実イメージに更新される。
+# frontend_image = "asia-northeast1-docker.pkg.dev/my-gcp-project/docker/frontend-service:latest"
+# backend_image  = "asia-northeast1-docker.pkg.dev/my-gcp-project/docker/backend-service:latest"
 
 github_repo = "owner/repo-name"
