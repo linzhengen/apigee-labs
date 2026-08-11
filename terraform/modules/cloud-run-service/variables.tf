@@ -56,8 +56,3 @@ variable "iam_members" {
   default = []
 }
 
-variable "depends_apis" {
-  description = "API 有効化リソースへの依存 (depends_on 用)"
-  type        = list(any)
-  default     = []
-}

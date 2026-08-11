@@ -1,7 +1,9 @@
 project_id        = "my-gcp-project"
 region            = "asia-northeast1"
 domain            = "app.example.com"
-iap_support_email = "admin@example.com"
+# IAP OAuth クライアント (GCP Console → APIs & Services → Credentials で作成)
+iap_oauth_client_id     = "xxxx.apps.googleusercontent.com"
+iap_oauth_client_secret = "GOCSPX-xxxx"
 
 iap_allowed_members = [
   "user:alice@example.com",
@@ -10,3 +12,5 @@ iap_allowed_members = [
 
 frontend_image = "asia-northeast1-docker.pkg.dev/my-gcp-project/repo/frontend:latest"
 backend_image  = "asia-northeast1-docker.pkg.dev/my-gcp-project/repo/backend:latest"
+
+github_repo = "owner/repo-name"

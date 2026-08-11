@@ -71,7 +71,7 @@ resource "google_artifact_registry_repository" "docker" {
 # ============================================================
 module "vpc" {
   source  = "terraform-google-modules/network/google"
-  version = "~> 18.0"
+  version = "~> 18.1"
 
   project_id   = var.project_id
   network_name = "main-vpc"
@@ -161,7 +161,7 @@ module "frontend" {
   image        = var.frontend_image
   ingress      = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
 
-  depends_apis = [google_project_service.apis]
+  depends_on = [google_project_service.apis]
 }
 
 # ============================================================
@@ -193,9 +193,7 @@ module "backend" {
     },
   ]
 
-  depends_apis = [google_project_service.apis]
-
-  depends_on = [module.vpc]
+  depends_on = [google_project_service.apis, module.vpc]
 }
 
 # ============================================================
@@ -231,11 +229,9 @@ module "apigee" {
 module "iap" {
   source = "../../modules/iap"
 
-  project_id        = var.project_id
-  support_email     = var.iap_support_email
-  application_title = "Apigee Labs"
-
-  depends_on = [google_project_service.apis]
+  project_id           = var.project_id
+  oauth2_client_id     = var.iap_oauth_client_id
+  oauth2_client_secret = var.iap_oauth_client_secret
 }
 
 # ============================================================
@@ -264,8 +260,8 @@ module "lb" {
   iap_config = {
     oauth2_client_id     = module.iap.client_id
     oauth2_client_secret = module.iap.client_secret
-    allowed_members      = var.iap_allowed_members
   }
+  iap_allowed_members = var.iap_allowed_members
 
   # Apigee X 接続 (/api/* → Apigee にルーティング)
   apigee_config = {

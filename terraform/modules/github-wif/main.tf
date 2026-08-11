@@ -54,9 +54,9 @@ resource "google_service_account_iam_member" "wif_binding" {
 # CI/CD SA に必要な最小権限
 resource "google_project_iam_member" "cicd_roles" {
   for_each = toset([
-    "roles/run.developer",              # Cloud Run デプロイ
-    "roles/artifactregistry.writer",    # Docker イメージ push
-    "roles/iam.serviceAccountUser",     # Cloud Run SA の指定
+    "roles/run.developer",           # Cloud Run デプロイ
+    "roles/artifactregistry.writer", # Docker イメージ push
+    "roles/iam.serviceAccountUser",  # Cloud Run SA の指定
   ])
 
   project = var.project_id

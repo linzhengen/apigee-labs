@@ -1,17 +1,12 @@
 # ============================================================
 # IAP (Identity-Aware Proxy) - プロジェクトスコープ
 #
-# google_iap_brand はプロジェクトに 1 つしか作成できないため、
-# LB モジュールとは独立して管理する。
+# google_iap_brand / google_iap_client は 2026-03-19 に廃止済み。
+# OAuth クライアントは GCP Console で手動作成し、
+# client_id / client_secret を変数で渡す。
+#
+# 手順:
+#   1. GCP Console → APIs & Services → Credentials
+#   2. OAuth 2.0 Client ID を作成 (Application type: Web application)
+#   3. terraform.tfvars に iap_oauth_client_id / iap_oauth_client_secret を設定
 # ============================================================
-
-resource "google_iap_brand" "this" {
-  project           = var.project_id
-  support_email     = var.support_email
-  application_title = var.application_title
-}
-
-resource "google_iap_client" "this" {
-  display_name = var.display_name
-  brand        = google_iap_brand.this.name
-}

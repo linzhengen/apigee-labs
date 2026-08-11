@@ -219,7 +219,8 @@ apigee-labs/
         ├── apigee-vertexai-proxy/        # Vertex AI 専用プロキシ (/api/vertexai)
         ├── apigee-service-proxy/         # 汎用 Cloud Run プロキシ (/api/{service})
         ├── lb/                           # Global HTTPS LB + IAP + パスルーティング
-        └── iap/                          # IAP Brand + OAuth Client
+        ├── github-wif/                    # GitHub Actions Workload Identity Federation
+        └── iap/                          # IAP OAuth 設定 (gcloud CLI で作成した値を受け渡し)
 ```
 
 ## URL Design
@@ -269,8 +270,8 @@ ui_frontends = [
 iap_config = {
   oauth2_client_id     = module.iap.client_id
   oauth2_client_secret = module.iap.client_secret
-  allowed_members      = ["user:admin@example.com"]
 }
+iap_allowed_members = ["user:admin@example.com"]
 ```
 
 ## CI/CD
@@ -304,6 +305,29 @@ OSS リポジトリではログが公開されるため、全て **Secrets** に
 | `WORKLOAD_IDENTITY_PROVIDER` | WIF プロバイダー | `terraform output github_wif_provider` |
 | `GCP_SERVICE_ACCOUNT` | CI/CD 用 SA | `terraform output github_wif_service_account` |
 
+### IAP OAuth クライアントの作成
+
+`google_iap_brand` / `google_iap_client` は 2026-03-19 に廃止されたため、
+OAuth クライアントは gcloud CLI または GCP Console で作成する。
+
+```bash
+# 1. OAuth 同意画面 (Brand) の作成
+gcloud iap oauth-brands create \
+  --application_title="Apigee Labs" \
+  --support_email="YOUR_EMAIL"
+
+# 2. OAuth クライアントの作成
+gcloud iap oauth-clients create \
+  "projects/YOUR_PROJECT_NUMBER/brands/YOUR_PROJECT_NUMBER" \
+  --display_name="IAP OAuth Client"
+
+# 3. 出力された client_id と client_secret を terraform.tfvars に設定
+#   iap_oauth_client_id     = "xxxx.apps.googleusercontent.com"
+#   iap_oauth_client_secret = "GOCSPX-xxxx"
+```
+
+> **Note**: `YOUR_PROJECT_NUMBER` は `gcloud projects describe YOUR_PROJECT --format='value(projectNumber)'` で取得できます。
+
 ### Deploy
 
 ```bash
@@ -312,7 +336,8 @@ terraform init
 terraform plan \
   -var="project_id=YOUR_PROJECT" \
   -var="domain=YOUR_DOMAIN" \
-  -var="iap_support_email=YOUR_EMAIL" \
+  -var="iap_oauth_client_id=YOUR_CLIENT_ID" \
+  -var="iap_oauth_client_secret=YOUR_CLIENT_SECRET" \
   -var="github_repo=OWNER/REPO"
 terraform apply
 ```

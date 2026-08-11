@@ -65,7 +65,6 @@ resource "google_cloud_run_v2_service" "this" {
     ]
   }
 
-  depends_on = var.depends_apis
 }
 
 # IAM メンバーの付与 (invoker 等: 外部からこのサービスを呼ぶ側の権限)

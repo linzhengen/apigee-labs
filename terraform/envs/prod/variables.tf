@@ -12,8 +12,16 @@ variable "domain" {
   type        = string
 }
 
-variable "iap_support_email" {
-  type = string
+variable "iap_oauth_client_id" {
+  description = "IAP 用 OAuth 2.0 クライアント ID (GCP Console で作成)"
+  type        = string
+  sensitive   = true
+}
+
+variable "iap_oauth_client_secret" {
+  description = "IAP 用 OAuth 2.0 クライアントシークレット (GCP Console で作成)"
+  type        = string
+  sensitive   = true
 }
 
 variable "iap_allowed_members" {

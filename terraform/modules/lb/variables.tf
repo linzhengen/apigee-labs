@@ -42,13 +42,19 @@ variable "default_ui_redirect" {
 
 # IAP 設定 (null の場合は全 Backend Service で IAP 無効)
 variable "iap_config" {
-  description = "IAP 設定。指定時は全 Backend Service (UI + Apigee) に IAP を有効化する"
+  description = "IAP OAuth 設定。指定時は全 Backend Service (UI + Apigee) に IAP を有効化する"
   type = object({
     oauth2_client_id     = string
     oauth2_client_secret = string
-    allowed_members      = list(string)
   })
-  default = null
+  default   = null
+  sensitive = true
+}
+
+variable "iap_allowed_members" {
+  description = "IAP アクセス許可メンバーのリスト (例: user:foo@example.com)"
+  type        = list(string)
+  default     = []
 }
 
 # Apigee 接続 (null の場合は /api/* ルーティングなし)

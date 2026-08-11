@@ -3,19 +3,14 @@ variable "project_id" {
   type        = string
 }
 
-variable "support_email" {
-  description = "IAP OAuth 同意画面のサポートメール"
+variable "oauth2_client_id" {
+  description = "IAP 用 OAuth 2.0 クライアント ID (GCP Console で作成)"
   type        = string
+  sensitive   = true
 }
 
-variable "application_title" {
-  description = "IAP OAuth 同意画面のアプリケーション名"
+variable "oauth2_client_secret" {
+  description = "IAP 用 OAuth 2.0 クライアントシークレット (GCP Console で作成)"
   type        = string
-  default     = "IAP Protected App"
-}
-
-variable "display_name" {
-  description = "OAuth クライアントの表示名"
-  type        = string
-  default     = "IAP OAuth Client"
+  sensitive   = true
 }

@@ -71,7 +71,7 @@ resource "google_iap_web_backend_service_iam_member" "ui" {
   for_each = {
     for pair in flatten([
       for f in var.ui_frontends : [
-        for member in(var.iap_config != null ? var.iap_config.allowed_members : []) : {
+        for member in var.iap_allowed_members : {
           key    = "${f.name}-${member}"
           name   = f.name
           member = member
@@ -140,7 +140,7 @@ resource "google_compute_backend_service" "apigee" {
 
 # IAP アクセス許可 (Apigee Backend Service)
 resource "google_iap_web_backend_service_iam_member" "apigee" {
-  for_each = var.apigee_config != null && var.iap_config != null ? toset(var.iap_config.allowed_members) : toset([])
+  for_each = var.apigee_config != null ? toset(var.iap_allowed_members) : toset([])
 
   project             = var.project_id
   web_backend_service = google_compute_backend_service.apigee[0].name
