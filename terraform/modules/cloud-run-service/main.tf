@@ -13,7 +13,14 @@ resource "google_service_account" "this" {
   display_name = "Cloud Run ${var.service_name} SA"
 }
 
-# SA に付与するロール
+# Artifact Registry からイメージを Pull するための権限 (必須)
+resource "google_project_iam_member" "artifact_registry_reader" {
+  project = var.project_id
+  role    = "roles/artifactregistry.reader"
+  member  = "serviceAccount:${google_service_account.this.email}"
+}
+
+# SA に付与する追加ロール (将来の拡張用)
 resource "google_project_iam_member" "sa_roles" {
   for_each = toset(var.service_account_roles)
 

@@ -293,20 +293,26 @@ Push to main → Docker build → Artifact Registry push → Cloud Run deploy
 - GCP プロジェクト (Apigee X 有効化済み)
 - ドメイン (DNS A レコード設定用)
 
-### GitHub Actions Variables
+### GitHub Actions Secrets (Environment: production)
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `GCP_PROJECT_ID` | GCP プロジェクト ID | `my-project` |
-| `GCP_REGION` | リージョン | `asia-northeast1` |
-| `WORKLOAD_IDENTITY_PROVIDER` | WIF プロバイダー | `projects/123/locations/global/...` |
-| `GCP_SERVICE_ACCOUNT` | CI/CD 用 SA | `github-actions@my-project.iam.gserviceaccount.com` |
+OSS リポジトリではログが公開されるため、全て **Secrets** に設定する (vars はマスクされない)。
+
+| Secret | Description | 取得方法 |
+|--------|-------------|----------|
+| `GCP_PROJECT_ID` | GCP プロジェクト ID | 手動設定 |
+| `GCP_REGION` | リージョン | 手動設定 |
+| `WORKLOAD_IDENTITY_PROVIDER` | WIF プロバイダー | `terraform output github_wif_provider` |
+| `GCP_SERVICE_ACCOUNT` | CI/CD 用 SA | `terraform output github_wif_service_account` |
 
 ### Deploy
 
 ```bash
 cd terraform/envs/prod
 terraform init
-terraform plan -var="project_id=YOUR_PROJECT" -var="domain=YOUR_DOMAIN" -var="iap_support_email=YOUR_EMAIL"
+terraform plan \
+  -var="project_id=YOUR_PROJECT" \
+  -var="domain=YOUR_DOMAIN" \
+  -var="iap_support_email=YOUR_EMAIL" \
+  -var="github_repo=OWNER/REPO"
 terraform apply
 ```

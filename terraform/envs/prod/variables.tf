@@ -21,6 +21,11 @@ variable "iap_allowed_members" {
   default = []
 }
 
+variable "github_repo" {
+  description = "GitHub リポジトリ (例: owner/apigee-labs)"
+  type        = string
+}
+
 variable "frontend_image" {
   description = "フロントエンド Cloud Run コンテナイメージ"
   type        = string

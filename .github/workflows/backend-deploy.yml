@@ -6,13 +6,10 @@ on:
     paths: ["apps/backend/**"]
   workflow_dispatch:
 
+# OSS セキュリティ: secrets を使うことでログからマスクされる
 env:
-  PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
-  REGION: ${{ vars.GCP_REGION }}
   SERVICE_NAME: backend-service
   REPOSITORY: docker
-  WORKLOAD_IDENTITY_PROVIDER: ${{ vars.WORKLOAD_IDENTITY_PROVIDER }}
-  SERVICE_ACCOUNT: ${{ vars.GCP_SERVICE_ACCOUNT }}
 
 permissions:
   contents: read
@@ -21,36 +18,26 @@ permissions:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    # OSS セキュリティ: environment による保護 (承認ルール設定可能)
+    environment: production
 
     steps:
       - uses: actions/checkout@v4
 
       - uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ env.WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ env.SERVICE_ACCOUNT }}
+          workload_identity_provider: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
       - uses: google-github-actions/setup-gcloud@v2
 
-      # Artifact Registry に Docker リポジトリがなければ作成
-      - name: Ensure Artifact Registry repository
-        run: |
-          gcloud artifacts repositories describe "${REPOSITORY}" \
-            --location="${REGION}" --project="${PROJECT_ID}" 2>/dev/null \
-          || gcloud artifacts repositories create "${REPOSITORY}" \
-            --repository-format=docker \
-            --location="${REGION}" \
-            --project="${PROJECT_ID}" \
-            --description="Backend service images"
-
       - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+        run: gcloud auth configure-docker "${{ secrets.GCP_REGION }}-docker.pkg.dev" --quiet
 
-      # イメージタグ: git SHA
       - name: Build and push Docker image
         working-directory: apps/backend
         run: |
-          IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${SERVICE_NAME}"
+          IMAGE="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${REPOSITORY}/${SERVICE_NAME}"
           TAG="${GITHUB_SHA::8}"
 
           docker build \
@@ -61,16 +48,17 @@ jobs:
           docker push "${IMAGE}:${TAG}"
           docker push "${IMAGE}:latest"
 
-          echo "IMAGE=${IMAGE}" >> "$GITHUB_ENV"
           echo "TAG=${TAG}" >> "$GITHUB_ENV"
 
       # Cloud Run にデプロイ (VPC 内部からのみ受信)
+      # --quiet: デプロイ後の URL 出力を抑制
       - name: Deploy to Cloud Run
         run: |
           gcloud run deploy "${SERVICE_NAME}" \
-            --image="${IMAGE}:${TAG}" \
-            --region="${REGION}" \
-            --project="${PROJECT_ID}" \
+            --image="${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${REPOSITORY}/${SERVICE_NAME}:${TAG}" \
+            --region="${{ secrets.GCP_REGION }}" \
+            --project="${{ secrets.GCP_PROJECT_ID }}" \
+            --service-account="${SERVICE_NAME}-sa@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com" \
             --ingress=internal \
             --no-allow-unauthenticated \
             --quiet
@@ -78,6 +66,5 @@ jobs:
       - name: Summary
         run: |
           echo "### Backend Deployed" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Image**: \`${IMAGE}:${TAG}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- **Service**: \`${SERVICE_NAME}\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Region**: \`${REGION}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Tag**: \`${TAG}\`" >> "$GITHUB_STEP_SUMMARY"

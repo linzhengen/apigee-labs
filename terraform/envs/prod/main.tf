@@ -37,6 +37,8 @@ resource "google_project_service" "apis" {
     "artifactregistry.googleapis.com",
     "servicenetworking.googleapis.com",
     "cloudresourcemanager.googleapis.com",
+    "dns.googleapis.com",
+    "iam.googleapis.com",
   ])
   service            = each.value
   disable_on_destroy = false
@@ -44,6 +46,17 @@ resource "google_project_service" "apis" {
 
 data "google_project" "project" {
   project_id = var.project_id
+}
+
+# Artifact Registry (Docker リポジトリ)
+resource "google_artifact_registry_repository" "docker" {
+  location      = var.region
+  project       = var.project_id
+  repository_id = "docker"
+  format        = "DOCKER"
+  description   = "Application container images"
+
+  depends_on = [google_project_service.apis]
 }
 
 # ============================================================
@@ -194,9 +207,9 @@ module "apigee" {
   project_id         = var.project_id
   region             = var.region
   network_id         = module.vpc.network_id
-  peering_range_name = google_compute_global_address.apigee_peering.name
   support_cidr_range = "10.100.4.0/28"
-  billing_type       = "PAYG"
+  # billing_type デフォルト: EVALUATION (即削除可能)
+  # 本番移行時は PAYG または SUBSCRIPTION に変更する
 
   environments = [
     {
@@ -298,4 +311,45 @@ module "backend_proxy" {
   target_url       = module.backend.service_uri
 
   depends_on = [module.apigee, module.backend]
+}
+
+# ============================================================
+# 公式モジュール: Cloud DNS ゾーン + A レコード
+# ============================================================
+module "dns" {
+  source  = "terraform-google-modules/cloud-dns/google"
+  version = "~> 7.0"
+
+  project_id = var.project_id
+  type       = "public"
+  name       = replace(var.domain, ".", "-")
+  domain     = "${var.domain}."
+
+  recordsets = [
+    {
+      name    = ""
+      type    = "A"
+      ttl     = 300
+      records = [module.lb.ip_address]
+    },
+  ]
+
+  depends_on = [google_project_service.apis, module.lb]
+}
+
+# ============================================================
+# 自作モジュール: GitHub Actions Workload Identity Federation
+#
+# OSS セキュリティ:
+#   - main ブランチの push イベントのみデプロイ可能
+#   - fork からの PR ではトークン取得不可
+# ============================================================
+module "github_wif" {
+  source = "../../modules/github-wif"
+
+  project_id     = var.project_id
+  github_repo    = var.github_repo
+  allowed_branch = "main"
+
+  depends_on = [google_project_service.apis]
 }

@@ -6,8 +6,11 @@ COPY . .
 RUN npm run build
 
 FROM nginx:1.27-alpine
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-# Vite builds to dist/ with base /ui/main/
-COPY --from=builder /app/dist /usr/share/nginx/html/ui/main
+# セキュリティ: non-root ユーザーで実行
+RUN sed -i 's/listen       8080;/listen       8080;/' /etc/nginx/conf.d/default.conf && \
+    chown -R nginx:nginx /var/cache/nginx /var/log/nginx /etc/nginx/conf.d
+USER nginx
+COPY --chown=nginx:nginx nginx.conf /etc/nginx/conf.d/default.conf
+COPY --chown=nginx:nginx --from=builder /app/dist /usr/share/nginx/html/ui/main
 EXPOSE 8080
 CMD ["nginx", "-g", "daemon off;"]

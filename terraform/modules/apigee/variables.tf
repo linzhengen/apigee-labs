@@ -13,26 +13,40 @@ variable "network_id" {
   type        = string
 }
 
-variable "peering_range_name" {
-  description = "サービスネットワーキング用に予約済みの IP レンジ名"
-  type        = string
-}
-
 variable "analytics_region" {
   description = "Apigee アナリティクスのリージョン"
   type        = string
   default     = ""
 }
 
+# EVALUATION の機能制限:
+#   - 60 日で自動削除 (延長不可)
+#   - 1 インスタンス / 1 ゾーンのみ (高可用性なし)
+#   - VPC Service Controls / Private DNS Peering 非対応
+#   - セキュリティパッチが最新でない場合あり
+#   - Google サポート対象外 (Pre-GA 扱い)
+#   - 有料版への変換不可 (PAYG/SUBSCRIPTION は新規作成が必要)
+#   - 削除は即座に実行・再作成可能 (retention 設定不要)
 variable "billing_type" {
-  description = "Apigee の課金タイプ (PAYG or SUBSCRIPTION)"
+  description = "Apigee の課金タイプ (EVALUATION, PAYG, SUBSCRIPTION)"
   type        = string
-  default     = "PAYG"
+  default     = "EVALUATION"
 }
 
 variable "support_cidr_range" {
   description = "Apigee トラブルシューティング用 /28 CIDR レンジ (例: 10.100.4.0/28)"
   type        = string
+}
+
+# 削除時の動作 (billing_type × retention):
+#   EVALUATION                       → 即座に削除・再作成可能
+#   PAYG/SUBSCRIPTION + MINIMUM      → 24 時間後に完全削除
+#   PAYG/SUBSCRIPTION + デフォルト   → 7 日後に完全削除
+# ソフトデリート期間中は同プロジェクトで再作成不可。
+variable "retention" {
+  description = "Apigee 組織の保持ポリシー (MINIMUM: 24h で削除, DELETION_RETENTION_UNSPECIFIED: 7 日保持)"
+  type        = string
+  default     = "DELETION_RETENTION_UNSPECIFIED"
 }
 
 variable "environments" {

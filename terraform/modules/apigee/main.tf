@@ -10,6 +10,7 @@ resource "google_apigee_organization" "this" {
   runtime_type        = "CLOUD"
   billing_type        = var.billing_type
   disable_vpc_peering = false
+  retention           = var.retention
 }
 
 # Apigee インスタンス (リージョン単位)
