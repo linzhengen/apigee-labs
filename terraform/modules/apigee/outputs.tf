@@ -13,6 +13,11 @@ output "instance_id" {
   value       = google_apigee_instance.this.id
 }
 
+output "service_attachment" {
+  description = "Apigee インスタンスの PSC サービスアタッチメント"
+  value       = google_apigee_instance.this.service_attachment
+}
+
 output "environment_names" {
   description = "作成された Apigee 環境名のマップ"
   value       = { for k, v in google_apigee_environment.this : k => v.name }
