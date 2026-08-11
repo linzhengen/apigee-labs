@@ -89,36 +89,19 @@ resource "google_iap_web_backend_service_iam_member" "ui" {
 # ============================================================
 # Apigee バックエンド (/api/* 用) + IAP
 # ============================================================
-resource "google_compute_network_endpoint_group" "apigee" {
+# PSC NEG: Apigee インスタンスの service_attachment 経由で接続
+# ヘルスチェックは PSC 側で自動管理されるため不要
+resource "google_compute_region_network_endpoint_group" "apigee" {
   count = var.apigee_config != null ? 1 : 0
 
-  name                  = "${var.name}-apigee-neg"
+  name                  = "${var.name}-apigee-psc-neg"
   project               = var.project_id
-  network_endpoint_type = "NON_GCP_PRIVATE_IP_PORT"
-  zone                  = var.apigee_config.zone
-  network               = var.apigee_config.network_self_link
-}
+  region                = var.region
+  network_endpoint_type = "PRIVATE_SERVICE_CONNECT"
+  psc_target_service    = var.apigee_config.service_attachment
 
-resource "google_compute_network_endpoint" "apigee" {
-  count = var.apigee_config != null ? 1 : 0
-
-  project                = var.project_id
-  network_endpoint_group = google_compute_network_endpoint_group.apigee[0].name
-  zone                   = var.apigee_config.zone
-  ip_address             = var.apigee_config.instance_host
-  port                   = 443
-}
-
-resource "google_compute_health_check" "apigee" {
-  count = var.apigee_config != null ? 1 : 0
-
-  name    = "${var.name}-apigee-hc"
-  project = var.project_id
-
-  https_health_check {
-    port         = 443
-    request_path = "/healthz/ingress"
-  }
+  network    = var.apigee_config.network_self_link
+  subnetwork = var.apigee_config.psc_subnetwork
 }
 
 resource "google_compute_backend_service" "apigee" {
@@ -129,12 +112,9 @@ resource "google_compute_backend_service" "apigee" {
   protocol              = "HTTPS"
   load_balancing_scheme = "EXTERNAL_MANAGED"
   timeout_sec           = 60
-  health_checks         = [google_compute_health_check.apigee[0].id]
 
   backend {
-    group           = google_compute_network_endpoint_group.apigee[0].id
-    balancing_mode  = "RATE"
-    max_rate_per_endpoint = 100
+    group = google_compute_region_network_endpoint_group.apigee[0].id
   }
 
   # IAP: iap_config が指定された場合に有効化

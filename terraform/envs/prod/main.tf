@@ -66,6 +66,7 @@ resource "google_artifact_registry_repository" "docker" {
 #   10.0.0.0/16    — ユーザー管理サブネット
 #     10.0.1.0/26  — Cloud Run UI (Direct VPC Egress, 将来の動的 UI 用)
 #     10.0.1.64/26 — Cloud Run backend  (Direct VPC Egress)
+#     10.0.2.0/28  — PSC NEG (Apigee → LB 接続用)
 #   10.100.0.0/22  — Apigee X ランタイム (peering_cidr_range = SLASH_22)
 #   10.100.4.0/28  — Apigee X トラブルシューティング (ip_range = /28)
 # ============================================================
@@ -92,6 +93,14 @@ module "vpc" {
       subnet_private_access = "true"
       description           = "Cloud Run backend - Direct VPC Egress"
     },
+    {
+      subnet_name           = "psc-apigee"
+      subnet_ip             = "10.0.2.0/28"
+      subnet_region         = var.region
+      subnet_private_access = "true"
+      subnet_purpose        = "PRIVATE_SERVICE_CONNECT"
+      description           = "PSC NEG for Apigee X LB connection"
+    },
   ]
 
   depends_on = [google_project_service.apis]
@@ -115,6 +124,7 @@ resource "google_compute_firewall" "run_to_apigee" {
 
   depends_on = [module.vpc]
 }
+
 
 # Apigee X 用プライベート IP レンジ (/22: ランタイム)
 resource "google_compute_global_address" "apigee_peering" {
@@ -263,11 +273,11 @@ module "lb" {
   }
   iap_allowed_members = var.iap_allowed_members
 
-  # Apigee X 接続 (/api/* → Apigee にルーティング)
+  # Apigee X 接続 (PSC NEG 経由で /api/* → Apigee にルーティング)
   apigee_config = {
-    instance_host     = module.apigee.instance_host
-    zone              = "${var.region}-a"
-    network_self_link = module.vpc.network_self_link
+    service_attachment = module.apigee.service_attachment
+    network_self_link  = module.vpc.network_self_link
+    psc_subnetwork     = module.vpc.subnets["${var.region}/psc-apigee"].self_link
   }
 
   depends_on = [
