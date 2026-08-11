@@ -1,20 +1,13 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <!--
-  リージョン指定時にターゲットホストをリージョナルエンドポイントに切り替える。
+  リージョン指定時に resolvedHost をリージョナルエンドポイントに更新。
   例: targetRegion = "asia-northeast1"
-    → target.url = "https://asia-northeast1-aiplatform.googleapis.com"
-
-  このポリシーは targetRegion が設定されている場合のみ実行される (Condition で制御)。
+    → resolvedHost = "asia-northeast1-aiplatform.googleapis.com"
 -->
 <AssignMessage name="AM-SetRegionalHost">
   <AssignTo createNew="false" type="request"/>
-  <Set>
-    <Headers>
-      <Header name="Host">{targetRegion}-aiplatform.googleapis.com</Header>
-    </Headers>
-  </Set>
   <AssignVariable>
-    <Name>target.url</Name>
-    <Value>https://{targetRegion}-aiplatform.googleapis.com</Value>
+    <Name>resolvedHost</Name>
+    <Value>{targetRegion}-aiplatform.googleapis.com</Value>
   </AssignVariable>
 </AssignMessage>

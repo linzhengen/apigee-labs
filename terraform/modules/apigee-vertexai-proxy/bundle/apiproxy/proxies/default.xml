@@ -27,8 +27,7 @@
         <Condition>targetRegion != null AND targetRegion != ""</Condition>
       </Step>
 
-      <!-- Vertex AI エンドポイント向けにターゲットパスを設定 -->
-      <Step><Name>AM-SetTargetPath</Name></Step>
+      <!-- target.url の設定は TargetEndpoint PreFlow の JS-SetTargetUrl で実行 -->
     </Request>
     <Response/>
   </PreFlow>
