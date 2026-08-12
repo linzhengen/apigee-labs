@@ -59,7 +59,7 @@ variable "iap_allowed_members" {
 
 # Apigee 接続 (null の場合は /api/* ルーティングなし)
 variable "apigee_config" {
-  description = "Apigee X 接続設定 (PSC NEG)。null の場合は Apigee バックエンドを作成しない"
+  description = "Apigee 接続設定 (PSC NEG)。null の場合は Apigee バックエンドを作成しない"
   type = object({
     service_attachment = string
     network_self_link  = string

@@ -68,8 +68,8 @@ resource "google_artifact_registry_repository" "docker" {
 #     10.0.1.0/26  — Cloud Run UI (Direct VPC Egress, UI 用)
 #     10.0.1.64/26 — Cloud Run backend  (Direct VPC Egress)
 #     10.0.2.0/28  — PSC NEG (Apigee → LB 接続用)
-#   10.100.0.0/22  — Apigee X ランタイム (peering_cidr_range = SLASH_22)
-#   10.100.4.0/28  — Apigee X トラブルシューティング (ip_range = /28)
+#   10.100.0.0/22  — Apigee ランタイム (peering_cidr_range = SLASH_22)
+#   10.100.4.0/28  — Apigee トラブルシューティング (ip_range = /28)
 # ============================================================
 module "vpc" {
   source  = "terraform-google-modules/network/google"
@@ -100,14 +100,14 @@ module "vpc" {
       subnet_region         = var.region
       subnet_private_access = "true"
       subnet_purpose        = "PRIVATE_SERVICE_CONNECT"
-      description           = "PSC NEG for Apigee X LB connection"
+      description           = "PSC NEG for Apigee LB connection"
     },
   ]
 
   depends_on = [google_project_service.apis]
 }
 
-# Cloud Run → Apigee X peering レンジへの HTTPS 通信を許可
+# Cloud Run → Apigee peering レンジへの HTTPS 通信を許可
 resource "google_compute_firewall" "run_to_apigee" {
   name      = "allow-run-to-apigee"
   network   = module.vpc.network_name
@@ -127,7 +127,7 @@ resource "google_compute_firewall" "run_to_apigee" {
 }
 
 
-# Apigee X 用プライベート IP レンジ (/22: ランタイム)
+# Apigee 用プライベート IP レンジ (/22: ランタイム)
 resource "google_compute_global_address" "apigee_peering" {
   name          = "apigee-peering-range"
   purpose       = "VPC_PEERING"
@@ -137,7 +137,7 @@ resource "google_compute_global_address" "apigee_peering" {
   network       = module.vpc.network_id
 }
 
-# Apigee X 用プライベート IP レンジ (/28: トラブルシューティング)
+# Apigee 用プライベート IP レンジ (/28: トラブルシューティング)
 resource "google_compute_global_address" "apigee_support_range" {
   name          = "apigee-support-range"
   purpose       = "VPC_PEERING"
@@ -216,7 +216,7 @@ module "backend" {
 }
 
 # ============================================================
-# 自作モジュール: Apigee X
+# 自作モジュール: Apigee
 # ============================================================
 module "apigee" {
   source = "../../modules/apigee"
@@ -248,9 +248,7 @@ module "apigee" {
 module "iap" {
   source = "../../modules/iap"
 
-  project_id           = var.project_id
-  oauth2_client_id     = var.iap_oauth_client_id
-  oauth2_client_secret = var.iap_oauth_client_secret
+  project_id = var.project_id
 }
 
 # ============================================================
@@ -275,14 +273,13 @@ module "lb" {
   # / → /ui/main/ にリダイレクト
   default_ui_redirect = "/ui/main/"
 
-  # IAP 設定 (iap モジュールから取得)
   iap_config = {
-    oauth2_client_id     = module.iap.client_id
-    oauth2_client_secret = module.iap.client_secret
+    oauth2_client_id     = var.iap_oauth_client_id
+    oauth2_client_secret = var.iap_oauth_client_secret
   }
   iap_allowed_members = var.iap_allowed_members
 
-  # Apigee X 接続 (PSC NEG 経由で /api/* → Apigee にルーティング)
+  # Apigee 接続 (PSC NEG 経由で /api/* → Apigee にルーティング)
   apigee_config = {
     service_attachment = module.apigee.service_attachment
     network_self_link  = module.vpc.network_self_link

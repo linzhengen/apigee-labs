@@ -1,12 +1,12 @@
 # apigee-vertexai-proxy
 
-Apigee X 経由で Vertex AI (Gemini 等) を呼び出すリバースプロキシモジュール。
+Apigee 経由で Vertex AI (Gemini 等) を呼び出すリバースプロキシモジュール。
 IAP 認証済みユーザーの識別、レート制限、リクエスト数クォータ、LLM トークン使用量の収集を行う。
 
 ## アーキテクチャ
 
 ```
-Client → LB (IAP) → Apigee X → Vertex AI
+Client → LB (IAP) → Apigee → Vertex AI
                        │
          ┌─────────────┼─────────────────┐
          │  Request     │  Response       │

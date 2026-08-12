@@ -3,7 +3,7 @@
 #
 # /                → リダイレクト → /ui/main/ (default_ui_redirect)
 # /ui/{name}/*     → Cloud Run (Serverless NEG) + IAP
-# /api/*           → Apigee X (Hybrid NEG) + IAP
+# /api/*           → Apigee (Hybrid NEG) + IAP
 # ============================================================
 
 # グローバル静的 IP

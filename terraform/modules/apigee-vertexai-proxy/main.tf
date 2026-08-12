@@ -132,7 +132,7 @@ data "archive_file" "proxy_bundle" {
 # Apigee API プロキシ (バンドルをアップロード)
 # ============================================================
 # ============================================================
-# DataCollector (Apigee X の カスタム Analytics ディメンション)
+# DataCollector (Apigee の カスタム Analytics ディメンション)
 # DataCapture ポリシーが参照する DataCollector を事前登録
 # ============================================================
 resource "google_apigee_data_collector" "user_email" {

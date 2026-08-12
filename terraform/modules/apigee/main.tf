@@ -2,7 +2,7 @@ locals {
   analytics_region = var.analytics_region != "" ? var.analytics_region : var.region
 }
 
-# Apigee X Organization
+# Apigee Organization
 resource "google_apigee_organization" "this" {
   project_id          = var.project_id
   analytics_region    = local.analytics_region

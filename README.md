@@ -1,6 +1,6 @@
 # Apigee Labs
 
-GCP 上に Apigee X を中心とした API プラットフォームを構築するプロジェクト。
+GCP 上に Apigee を中心とした API プラットフォームを構築するプロジェクト。
 IAP 認証・Vertex AI 統合を含む、本番レベルのアーキテクチャを Terraform で管理。
 
 ## Architecture
@@ -21,10 +21,10 @@ IAP 認証・Vertex AI 統合を含む、本番レベルのアーキテクチャ
                        │    ▼         ▼                                          │
                        │ ┌─────────────────┐  ┌─────────────────────────────┐    │
                        │ │ Backend Service │  │ Backend Service             │    │
-                       │ │ (IAP enabled)   │  │ (IAP enabled)              │    │
+                       │ │ (IAP enabled)   │  │ (IAP enabled)               │    │
                        │ │                 │  │                             │    │
                        │ │  ┌───────────┐  │  │  ┌───────────────────────┐  │    │
-                       │ │  │Cloud Run  │  │  │  │ Apigee X (PSC NEG)   │  │    │
+                       │ │  │Cloud Run  │  │  │  │ Apigee (PSC NEG)      │  │    │
                        │ │  │frontend   │  │  │  │                       │  │    │
                        │ │  │-service   │  │  │  │ vertexai-proxy        │  │    │
                        │ │  │(nginx)    │  │  │  │  JWT→email,SpikeArrest│  │    │
@@ -37,7 +37,7 @@ IAP 認証・Vertex AI 統合を含む、本番レベルのアーキテクチャ
 
   IAP は各 Backend Service に適用:
     ✅ Backend Service (Cloud Run frontend) — /ui/*
-    ✅ Backend Service (Apigee X PSC NEG)   — /api/*
+    ✅ Backend Service (Apigee PSC NEG)    — /api/*
     → 同一ドメインの IAP Cookie で全パスを保護
 ```
 
@@ -70,7 +70,7 @@ graph TB
       CR_FE["Cloud Run<br/>frontend-service<br/>(nginx + SPA)"]
     end
 
-    subgraph ApigeeX["Apigee X"]
+    subgraph ApigeeX["Apigee"]
       VP["vertexai-proxy<br/>/api/vertexai<br/>SpikeArrest + Quota + Token Tracking"]
       BP["backend-proxy<br/>/api/backend"]
       SP["...-proxy<br/>/api/{service}"]
@@ -86,7 +86,7 @@ graph TB
       SUB_UI["run-ui<br/>10.0.1.0/26"]
       SUB_BE["run-backend<br/>10.0.1.64/26"]
       subgraph Peering["VPC Peering (10.100.0.0/22)"]
-        AI["Apigee X Instance"]
+        AI["Apigee Instance"]
       end
     end
   end
@@ -114,7 +114,7 @@ sequenceDiagram
   participant IAP as IAP
   participant G as Google OAuth
   participant FE as Cloud Run Frontend
-  participant AG as Apigee X
+  participant AG as Apigee
   participant VAI as Vertex AI
   participant BE as Cloud Run Backend
 
@@ -164,7 +164,7 @@ graph TB
       S2["run-backend<br/>10.0.1.64/26<br/>(Cloud Run backend)"]
     end
     subgraph Peering["VPC Peering"]
-      AP["Apigee X Instance<br/>10.100.0.0/22 (ランタイム)"]
+      AP["Apigee Instance<br/>10.100.0.0/22 (ランタイム)"]
       TS["Apigee Troubleshooting<br/>10.100.4.0/28"]
     end
     S2 -->|Direct VPC Egress| AP
@@ -172,7 +172,7 @@ graph TB
   end
 ```
 
-> **Note**: Apigee X インスタンスには /22（ランタイム）と /28（トラブルシューティング）の 2 つの CIDR レンジが必要です。
+> **Note**: Apigee インスタンスには /22（ランタイム）と /28（トラブルシューティング）の 2 つの CIDR レンジが必要です。
 > 両方をサービスネットワーキングの予約レンジに含め、VPC ピアリングで接続します。
 > 詳細: [Apigee ネットワーキング オプション](https://docs.cloud.google.com/apigee/docs/api-platform/get-started/networking-options)
 
@@ -224,7 +224,7 @@ apigee-labs/
     │   └── outputs.tf
     │
     └── modules/
-        ├── apigee/                       # Apigee X Org/Instance/Env/Envgroup
+        ├── apigee/                       # Apigee Org/Instance/Env/Envgroup
         ├── apigee-vertexai-proxy/        # Vertex AI 専用プロキシ (/api/vertexai)
         ├── apigee-service-proxy/         # 汎用 Cloud Run プロキシ (/api/{service})
         ├── lb/                           # Global HTTPS LB + IAP + パスルーティング
@@ -300,7 +300,7 @@ Push to main → Docker build → Artifact Registry push → Cloud Run deploy
 ### Prerequisites
 
 - Terraform >= 1.15 (`tfenv` で自動管理)
-- GCP プロジェクト (Apigee X 有効化済み)
+- GCP プロジェクト (Apigee 有効化済み)
 - ドメイン (DNS A レコード設定用)
 
 ### GitHub Actions Secrets (Environment: production)

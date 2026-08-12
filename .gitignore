@@ -37,3 +37,6 @@ Thumbs.db
 # Environment
 .env
 .env.local
+
+# Terraform secrets (auto-loaded)
+**/secrets.auto.tfvars
