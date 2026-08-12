@@ -2,7 +2,7 @@
 <TargetEndpoint name="default">
   <PreFlow name="PreFlow">
     <Request>
-      <!-- target.url をフル URL に上書き (pathsuffix コピー後に実行) -->
+      <!-- target.url をフル URL に上書き (常に Terraform の project_id を使用) -->
       <Step><Name>AM-SetTargetPath</Name></Step>
     </Request>
     <Response>

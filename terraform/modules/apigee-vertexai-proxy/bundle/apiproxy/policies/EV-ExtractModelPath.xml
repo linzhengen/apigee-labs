@@ -3,21 +3,26 @@
   受信パスからモデルとアクションを抽出する。
 
   対応パターン (proxy.pathsuffix に対してマッチ、BasePath /api/vertexai は含まない):
-    グローバル:
-      /v1/models/gemini-2.0-flash:generateContent
-    リージョン指定:
-      /v1/locations/asia-northeast1/models/gemini-2.0-flash:generateContent
+    簡易パターン (フロントエンド fetch 用):
+      /v1/models/gemini-2.5-flash:generateContent
+      /v1/locations/asia-northeast1/models/gemini-2.5-flash:generateContent
+    SDK パターン (google-genai SDK 用):
+      /v1/projects/{project}/locations/{region}/publishers/google/models/gemini-2.5-flash:generateContent
 
   抽出される変数:
-    apiVersion  → "v1" / "v1beta" / "v1alpha"
-    modelAction → "gemini-2.0-flash:generateContent" (model:action 形式)
+    modelAction  → "gemini-2.5-flash:generateContent" (model:action 形式)
     targetRegion → "asia-northeast1" (リージョン指定時のみ設定)
+    sdkFullPath  → "projects/.../locations/.../publishers/google/models/..." (SDK パターン時のみ設定)
 -->
 <ExtractVariables name="EV-ExtractModelPath">
   <URIPath>
-    <!-- リージョン指定パターン (先にマッチ) -->
+    <!-- SDK パターン (フルパス: project/location/publishers 付き) -->
+    <Pattern ignoreCase="true">/{apiVersion}/projects/{sdkProject}/locations/{targetRegion}/publishers/{sdkPublisher}/models/{modelAction}</Pattern>
+    <!-- SDK パターン (publishers のみ、COLLECTION scope 向け) -->
+    <Pattern ignoreCase="true">/{apiVersion}/publishers/{sdkPublisher}/models/{modelAction}</Pattern>
+    <!-- 簡易パターン: リージョン指定 -->
     <Pattern ignoreCase="true">/{apiVersion}/locations/{targetRegion}/models/{modelAction}</Pattern>
-    <!-- グローバルパターン -->
+    <!-- 簡易パターン: グローバル -->
     <Pattern ignoreCase="true">/{apiVersion}/models/{modelAction}</Pattern>
   </URIPath>
   <IgnoreUnresolvedVariables>true</IgnoreUnresolvedVariables>

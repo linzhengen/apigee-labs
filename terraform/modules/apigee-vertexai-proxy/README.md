@@ -23,9 +23,17 @@ Client → LB (IAP) → Apigee X → Vertex AI
 
 ## エンドポイント
 
+### 簡易パターン (フロントエンド fetch 用)
+
 ```
 POST /api/vertexai/v1/models/{model}:{action}
 POST /api/vertexai/v1/locations/{region}/models/{model}:{action}
+```
+
+### SDK パターン (google-genai SDK 用)
+
+```
+POST /api/vertexai/v1/projects/{project}/locations/{region}/publishers/google/models/{model}:{action}
 ```
 
 ### 変換例
@@ -34,6 +42,101 @@ POST /api/vertexai/v1/locations/{region}/models/{model}:{action}
 |---|---|
 | `/api/vertexai/v1/models/gemini-2.5-flash:generateContent` | `https://aiplatform.googleapis.com/v1/projects/{project}/locations/global/publishers/google/models/gemini-2.5-flash:generateContent` |
 | `/api/vertexai/v1/locations/asia-northeast1/models/gemini-2.5-flash:generateContent` | `https://asia-northeast1-aiplatform.googleapis.com/v1/projects/{project}/locations/asia-northeast1/publishers/google/models/gemini-2.5-flash:generateContent` |
+| `/api/vertexai/v1/projects/*/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent` | `https://us-central1-aiplatform.googleapis.com/v1/projects/{terraform_project_id}/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent` (project は Terraform 値に強制) |
+
+### Python SDK (google-genai) での利用例
+
+IAP で保護されたエンドポイントにアクセスするには、IAP クライアント ID を audience に指定した ID トークンが必要です。
+
+`google-genai` SDK を Apigee プロキシ経由で使う場合、以下の SDK 制約に対応する必要があります:
+
+1. SDK はデフォルトで `api_version='v1beta1'` を付与する → `api_version='v1'` で上書き
+2. `project`/`location` を指定すると SDK が Authorization ヘッダーを ADC アクセストークンで上書きしてしまう → `project`/`location` は指定しない
+3. `project`/`location` 未指定 + カスタム `base_url` では SDK がパスを構築しない → ダミーの `api_key` で回避
+
+以下は `venv/main.py` の実行コード (response 行を除く) に秘密情報をプレースホルダー化した完全な例です:
+
+```python
+from google import genai
+from google.oauth2 import service_account
+from google.auth.transport.requests import Request
+
+IAP_CLIENT_ID = "YOUR_IAP_CLIENT_ID.apps.googleusercontent.com"
+SA_KEY_PATH = "path/to/your-service-account-key.json"
+
+def get_iap_token(iap_client_id, sa_key_path):
+    """サービスアカウントの鍵から IAP 用 ID トークンを生成する。"""
+    credentials = service_account.IDTokenCredentials.from_service_account_file(
+        sa_key_path,
+        target_audience=iap_client_id,
+    )
+    credentials.refresh(Request())
+    return credentials.token
+
+iap_token = get_iap_token(IAP_CLIENT_ID, SA_KEY_PATH)
+
+# api_key にダミー値を渡すことで、SDK がカスタム base_url に対して
+# パスを正しく構築し、かつ ADC アクセストークンで Authorization ヘッダーを
+# 上書きしないようにする
+client = genai.Client(
+    vertexai=True,
+    api_key='dummy-api-key',  # ダミー: パス構築の有効化 + Authorization 上書き防止
+    http_options={
+        'base_url': 'https://YOUR_DOMAIN/api/vertexai/',
+        'api_version': 'v1',
+        'headers': {'Authorization': f'Bearer {iap_token}'},
+    },
+)
+```
+
+> **Note**: Cloud Run / GCE 上ではメタデータサーバーから自動取得する方法もある。`gcloud` CLI が使えない環境では `requests` でメタデータサーバーに問い合わせる。
+
+`model` の指定方法は 3 通りある。SDK 内部で `t_model()` → メソッド suffix (`:generateContent`) 付与 → `api_version` 前置 の変換を経て、以下のリクエストパスがプロキシに届く。
+
+プロキシの `EV-ExtractModelPath`  (`#` はパターン番号) は 4 つのパターンで `modelAction` と `targetRegion` を抽出し、`AM-SetTargetPath` が Terraform の `project_id` を使って Vertex AI バックエンド URL を組み立てる。
+
+```
+EV-ExtractModelPath のマッチングパターン (proxy.pathsuffix に対するマッチ):
+
+  #1  /{apiVersion}/projects/{sdkProject}/locations/{targetRegion}/publishers/{sdkPublisher}/models/{modelAction}
+  #2  /{apiVersion}/publishers/{sdkPublisher}/models/{modelAction}
+  #3  /{apiVersion}/locations/{targetRegion}/models/{modelAction}
+  #4  /{apiVersion}/models/{modelAction}
+```
+
+| # | model 値 | SDK が生成するリクエストパス | マッチする EV パターン | targetRegion | バックエンドリージョン |
+|---|----------|---------------------------|---------------------|-------------|---------------------|
+| 1 | `'gemini-2.5-flash'` | `v1/publishers/google/models/gemini-2.5-flash:generateContent` | `#2` (publishers) | **(なし)** | `global` |
+| 2 | `'publishers/google/models/gemini-2.5-flash'` | `v1/publishers/google/models/gemini-2.5-flash:generateContent` | `#2` (publishers) | **(なし)** | `global` |
+| 3 | `'projects/{p}/locations/{r}/publishers/google/models/gemini-2.5-flash'` | `v1/projects/{p}/locations/{r}/publishers/google/models/gemini-2.5-flash:generateContent` | `#1` (SDK フルパス) | `{r}` | `{r}` |
+
+- **パターン 1, 2**: リクエストパスにリージョン情報がないため、`AM-ResolveRegion` によって `targetRegion` → `global` にフォールバックされる。グローバルエンドポイント (`aiplatform.googleapis.com`) にルーティングされる
+- **パターン 3**: リクエストパスからリージョンが抽出され、`AM-SetRegionalHost` によってリージョナルエンドポイント (`{region}-aiplatform.googleapis.com`) にルーティングされる。リージョンを指定したい場合はこのパターンを使う
+- **project は常に Terraform 値**: パターン 3 で `{sdkProject}` は抽出されるが、`AM-SetTargetPath` は常に Terraform の `project_id` を使用するため、SDK 側のプロジェクト指定は無視される
+
+```python
+# パターン 1: 短縮名 (推奨)
+response = client.models.generate_content(
+    model='gemini-2.5-flash',
+    contents='Hello',
+)
+
+# パターン 2: publishers パス
+response = client.models.generate_content(
+    model='publishers/google/models/gemini-2.5-flash',
+    contents='Hello',
+)
+
+# パターン 3: フルパス (project/location はプロキシ側の Terraform 値で上書き)
+response = client.models.generate_content(
+    model='projects/my-project/locations/asia-northeast1/publishers/google/models/gemini-2.5-flash',
+    contents='Hello',
+)
+
+print(response.text)
+```
+
+> **仕組み**: `model='gemini-2.5-flash'` は SDK の `t_model()` によって `publishers/google/models/gemini-2.5-flash` に展開され、`_build_request()` 内で `api_version='v1'` が前置される。最終的なリクエスト URL は `POST /api/vertexai/v1/publishers/google/models/gemini-2.5-flash:generateContent` となり、プロキシの `EV-ExtractModelPath` でパースされた後、`AM-SetTargetPath` が Terraform の `project_id` を使って完全な Vertex AI エンドポイント URL に組み立てる。
 
 ## LLM 使用量管理
 
@@ -153,7 +256,7 @@ module "vertexai_proxy" {
 
 | 順序 | ポリシー | 説明 |
 |---|---|---|
-| 1 | `AM-SetTargetPath` | `target.url` を Vertex AI フル URL に設定 |
+| 1 | `AM-SetTargetPath` | `target.url` を Vertex AI フル URL に設定 (project_id は常に Terraform 値を使用) |
 
 ### Response (TargetEndpoint PreFlow)
 

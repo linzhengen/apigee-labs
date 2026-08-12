@@ -17,7 +17,7 @@
       <Payload contentType="application/json"><![CDATA[{
   "error": {
     "code": 404,
-    "message": "Model not found. Correct path formats: POST /api/vertexai/v1/models/{model}:generateContent or POST /api/vertexai/v1/locations/{region}/models/{model}:generateContent",
+    "message": "Model not found. Correct path format: POST /api/vertexai/v1/models/MODEL_NAME:generateContent (global), POST /api/vertexai/v1/locations/REGION/models/MODEL_NAME:generateContent (regional), or POST /api/vertexai/v1/projects/PROJECT/locations/REGION/publishers/google/models/MODEL_NAME:generateContent (SDK)",
     "status": "NOT_FOUND"
   }
 }]]></Payload>

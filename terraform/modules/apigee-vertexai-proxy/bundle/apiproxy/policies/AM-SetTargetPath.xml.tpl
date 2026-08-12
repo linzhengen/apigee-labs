@@ -2,7 +2,10 @@
 <!--
   Vertex AI エンドポイント向けに target.url をフルURLで設定。
   TargetEndpoint PreFlow で実行し、pathsuffix 自動コピーを上書きする。
-  <Template> はメッセージテンプレート構文を解釈するため {variable} が展開される。
+
+  project_id は常に Terraform 値 (${project_id}) を使用。
+  publisher は google 固定。
+  リージョンは AM-SetRegionalHost (resolvedHost) と AM-ResolveRegion (resolvedRegion) で決定済み。
 -->
 <AssignMessage name="AM-SetTargetPath">
   <AssignTo createNew="false" type="request"/>
