@@ -305,8 +305,6 @@ Push to main → Docker build → Artifact Registry push → Cloud Run deploy
 
 ### GitHub Actions Secrets (Environment: production)
 
-OSS リポジトリではログが公開されるため、全て **Secrets** に設定する (vars はマスクされない)。
-
 | Secret | Description | 取得方法 |
 |--------|-------------|----------|
 | `GCP_PROJECT_ID` | Google Cloud プロジェクト ID | 手動設定 |
@@ -317,7 +315,7 @@ OSS リポジトリではログが公開されるため、全て **Secrets** に
 ### IAP OAuth クライアントの作成
 
 `google_iap_brand` / `google_iap_client` は 2026-03-19 に廃止されたため、
-OAuth クライアントは gcloud CLI または GCP Console で作成する。
+OAuth クライアントは gcloud CLI または Google Cloud Console で作成する。
 
 ```bash
 # 1. OAuth 同意画面 (Brand) の作成
