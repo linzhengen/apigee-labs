@@ -1,38 +1,38 @@
 # Apigee Labs
 
-GCP 上に Apigee を中心とした API プラットフォームを構築するプロジェクト。
+Google Cloud上に Apigee を中心とした API プラットフォームを構築するプロジェクト。
 IAP 認証・Vertex AI 統合を含む、本番レベルのアーキテクチャを Terraform で管理。
 
 ## Architecture
 
 ```
                        ┌──────────────────────────────────────────────────────────┐
-                       │                       GCP Project                       │
-                       │                                                         │
-┌──────────┐  HTTPS    │  ┌──────────────┐                                       │
-│          │ ────────► │  │ Global HTTPS │                                       │
-│ Browser  │           │  │ LB + SSL     │                                       │
-│          │ ◄──────── │  └──────┬───────┘                                       │
-└──────────┘           │         │ URL Map                                       │
-                       │    ┌────┴────┐                                          │
-                       │    ▼         ▼                                          │
-                       │ /ui/*     /api/*                                        │
-                       │    │         │                                          │
-                       │    ▼         ▼                                          │
-                       │ ┌─────────────────┐  ┌─────────────────────────────┐    │
-                       │ │ Backend Service │  │ Backend Service             │    │
-                       │ │ (IAP enabled)   │  │ (IAP enabled)               │    │
-                       │ │                 │  │                             │    │
-                       │ │  ┌───────────┐  │  │  ┌───────────────────────┐  │    │
-                       │ │  │Cloud Run  │  │  │  │ Apigee (PSC NEG)      │  │    │
-                       │ │  │frontend   │  │  │  │                       │  │    │
-                       │ │  │-service   │  │  │  │ vertexai-proxy        │  │    │
-                       │ │  │(nginx)    │  │  │  │  JWT→email,SpikeArrest│  │    │
+                       │                  Google Cloud Project                    │
+                       │                                                          │
+┌──────────┐  HTTPS    │  ┌──────────────┐                                        │
+│          │ ────────► │  │ Global HTTPS │                                        │
+│ Browser  │           │  │ LB + SSL     │                                        │
+│          │ ◄──────── │  └──────┬───────┘                                        │
+└──────────┘           │         │ URL Map                                        │
+                       │    ┌────┴────┐                                           │
+                       │    ▼         ▼                                           │
+                       │ /ui/*     /api/*                                         │
+                       │    │         │                                           │
+                       │    ▼         ▼                                           │
+                       │ ┌─────────────────┐  ┌─────────────────────────────┐     │
+                       │ │ Backend Service │  │ Backend Service             │     │
+                       │ │ (IAP enabled)   │  │ (IAP enabled)               │     │
+                       │ │                 │  │                             │     │
+                       │ │  ┌───────────┐  │  │  ┌───────────────────────┐  │     │
+                       │ │  │Cloud Run  │  │  │  │ Apigee (PSC NEG)      │  │     │
+                       │ │  │frontend   │  │  │  │                       │  │     │
+                       │ │  │-service   │  │  │  │ vertexai-proxy        │  │     │
+                       │ │  │(nginx)    │  │  │  │  JWT→email,SpikeArrest│  │     │
                        │ │  │           │  │  │  │  Quota,Token Tracking │──┼──► Vertex AI
                        │ │  │           │  │  │  │ backend-proxy (OIDC)  │──┼──► Cloud Run
                        │ │  │           │  │  │  │ {service}-proxy       │──┼──► Future
-                       │ │  └───────────┘  │  │  └───────────────────────┘  │    │
-                       │ └─────────────────┘  └─────────────────────────────┘    │
+                       │ │  └───────────┘  │  │  └───────────────────────┘  │     │
+                       │ └─────────────────┘  └─────────────────────────────┘     │
                        └──────────────────────────────────────────────────────────┘
 
   IAP は各 Backend Service に適用:
@@ -53,7 +53,7 @@ graph TB
     GAUTH["Google OAuth 2.0"]
   end
 
-  subgraph GCP["GCP Project"]
+  subgraph GCP["Google Cloud Project"]
     LB["Global HTTPS LB<br/>+ Managed SSL"]
 
     subgraph Auth["Authentication"]
@@ -300,7 +300,7 @@ Push to main → Docker build → Artifact Registry push → Cloud Run deploy
 ### Prerequisites
 
 - Terraform >= 1.15 (`tfenv` で自動管理)
-- GCP プロジェクト (Apigee 有効化済み)
+- Google Cloud プロジェクト (Apigee 有効化済み)
 - ドメイン (DNS A レコード設定用)
 
 ### GitHub Actions Secrets (Environment: production)
@@ -309,7 +309,7 @@ OSS リポジトリではログが公開されるため、全て **Secrets** に
 
 | Secret | Description | 取得方法 |
 |--------|-------------|----------|
-| `GCP_PROJECT_ID` | GCP プロジェクト ID | 手動設定 |
+| `GCP_PROJECT_ID` | Google Cloud プロジェクト ID | 手動設定 |
 | `GCP_REGION` | リージョン | 手動設定 |
 | `WORKLOAD_IDENTITY_PROVIDER` | WIF プロバイダー | `terraform output github_wif_provider` |
 | `GCP_SERVICE_ACCOUNT` | CI/CD 用 SA | `terraform output github_wif_service_account` |
