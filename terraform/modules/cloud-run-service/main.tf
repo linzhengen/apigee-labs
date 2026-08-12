@@ -70,7 +70,7 @@ resource "google_cloud_run_v2_service" "this" {
 
 # IAM メンバーの付与 (invoker 等: 外部からこのサービスを呼ぶ側の権限)
 resource "google_cloud_run_v2_service_iam_member" "this" {
-  for_each = { for iam in var.iam_members : "${iam.role}-${iam.member}" => iam }
+  for_each = { for idx, iam in var.iam_members : idx => iam }
 
   project  = var.project_id
   location = var.region
