@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!--
+  Apigee X Analytics にカスタムディメンションを記録する。
+  ユーザー別・モデル別のリクエスト数とトークン使用量を集計可能。
+-->
+<DataCapture name="SC-CollectUsageStats" continueOnError="false" enabled="true">
+  <IgnoreUnresolvedVariables>true</IgnoreUnresolvedVariables>
+  <Capture>
+    <Collect ref="jwt.DJ-DecodeIapJwt.claim.email" default="unknown"/>
+    <DataCollector>dc_user_email</DataCollector>
+  </Capture>
+  <Capture>
+    <Collect ref="modelAction" default="unknown"/>
+    <DataCollector>dc_model_action</DataCollector>
+  </Capture>
+  <Capture>
+    <Collect ref="resolvedRegion" default="global"/>
+    <DataCollector>dc_target_region</DataCollector>
+  </Capture>
+  <Capture>
+    <Collect ref="prompt_token_count" default="0"/>
+    <DataCollector>dc_prompt_token_count</DataCollector>
+  </Capture>
+  <Capture>
+    <Collect ref="candidates_token_count" default="0"/>
+    <DataCollector>dc_candidates_token_count</DataCollector>
+  </Capture>
+  <Capture>
+    <Collect ref="total_token_count" default="0"/>
+    <DataCollector>dc_total_token_count</DataCollector>
+  </Capture>
+</DataCapture>

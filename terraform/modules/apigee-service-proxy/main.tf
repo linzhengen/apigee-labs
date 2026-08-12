@@ -75,8 +75,8 @@ data "archive_file" "proxy_bundle" {
 # Apigee API プロキシ (バンドルをアップロード)
 # ============================================================
 resource "google_apigee_api" "proxy" {
-  org_id        = var.org_id
-  name          = "${var.service_name}-proxy"
+  org_id         = var.org_id
+  name           = "${var.service_name}-proxy"
   config_bundle  = data.archive_file.proxy_bundle.output_path
   detect_md5hash = data.archive_file.proxy_bundle.output_md5
 

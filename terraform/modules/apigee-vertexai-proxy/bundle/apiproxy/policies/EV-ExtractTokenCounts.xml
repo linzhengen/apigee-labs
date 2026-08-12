@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!--
+  Vertex AI レスポンスから usageMetadata のトークン数を抽出する。
+  JSONPath の結果は配列文字列 (例: ["255"]) になるため、
+  AM-CleanTokenCounts で括弧を除去して数値化する。
+-->
+<ExtractVariables name="EV-ExtractTokenCounts" continueOnError="false" enabled="true">
+  <IgnoreUnresolvedVariables>true</IgnoreUnresolvedVariables>
+  <JSONPayload>
+    <Variable name="prompt_token_count_raw">
+      <JSONPath>$.[?(@.usageMetadata.promptTokenCount&gt;0)].usageMetadata.promptTokenCount</JSONPath>
+    </Variable>
+    <Variable name="candidates_token_count_raw">
+      <JSONPath>$.[?(@.usageMetadata.promptTokenCount&gt;0)].usageMetadata.candidatesTokenCount</JSONPath>
+    </Variable>
+    <Variable name="total_token_count_raw">
+      <JSONPath>$.[?(@.usageMetadata.promptTokenCount&gt;0)].usageMetadata.totalTokenCount</JSONPath>
+    </Variable>
+  </JSONPayload>
+  <Source clearPayload="false">response</Source>
+</ExtractVariables>

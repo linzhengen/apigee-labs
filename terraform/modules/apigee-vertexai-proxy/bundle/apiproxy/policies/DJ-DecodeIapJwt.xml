@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!--
+  IAP が付与した X-Goog-IAP-JWT-Assertion ヘッダーをデコードし、
+  ユーザーのメールアドレスを iapUserEmail 変数に格納する。
+  署名検証は IAP が保証済みのため、ここではデコードのみ行う。
+-->
+<DecodeJWT name="DJ-DecodeIapJwt">
+  <Source>request.header.X-Goog-IAP-JWT-Assertion</Source>
+  <IgnoreUnresolvedVariables>true</IgnoreUnresolvedVariables>
+</DecodeJWT>

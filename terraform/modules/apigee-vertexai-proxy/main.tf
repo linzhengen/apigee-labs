@@ -54,6 +54,27 @@ data "archive_file" "proxy_bundle" {
   }
 
   source {
+    content  = file("${path.module}/bundle/apiproxy/policies/DJ-DecodeIapJwt.xml")
+    filename = "apiproxy/policies/DJ-DecodeIapJwt.xml"
+  }
+
+  source {
+    content = templatefile("${path.module}/bundle/apiproxy/policies/SA-SpikeArrest.xml.tpl", {
+      spike_arrest_rate = var.spike_arrest_rate
+    })
+    filename = "apiproxy/policies/SA-SpikeArrest.xml"
+  }
+
+  source {
+    content = templatefile("${path.module}/bundle/apiproxy/policies/QU-PerUserQuota.xml.tpl", {
+      quota_limit     = var.quota_limit
+      quota_interval  = var.quota_interval
+      quota_time_unit = var.quota_time_unit
+    })
+    filename = "apiproxy/policies/QU-PerUserQuota.xml"
+  }
+
+  source {
     content  = file("${path.module}/bundle/apiproxy/policies/AM-RemoveClientAuth.xml")
     filename = "apiproxy/policies/AM-RemoveClientAuth.xml"
   }
@@ -85,16 +106,82 @@ data "archive_file" "proxy_bundle" {
     content  = file("${path.module}/bundle/apiproxy/policies/RF-ModelNotFound.xml")
     filename = "apiproxy/policies/RF-ModelNotFound.xml"
   }
+
+  source {
+    content  = file("${path.module}/bundle/apiproxy/policies/EV-ExtractTokenCounts.xml")
+    filename = "apiproxy/policies/EV-ExtractTokenCounts.xml"
+  }
+
+  source {
+    content  = file("${path.module}/bundle/apiproxy/policies/AM-CleanTokenCounts.xml")
+    filename = "apiproxy/policies/AM-CleanTokenCounts.xml"
+  }
+
+  source {
+    content  = file("${path.module}/bundle/apiproxy/policies/SC-CollectUsageStats.xml")
+    filename = "apiproxy/policies/SC-CollectUsageStats.xml"
+  }
+
+  source {
+    content  = file("${path.module}/bundle/apiproxy/policies/AM-AddQuotaHeaders.xml")
+    filename = "apiproxy/policies/AM-AddQuotaHeaders.xml"
+  }
 }
 
 # ============================================================
 # Apigee API プロキシ (バンドルをアップロード)
 # ============================================================
+# ============================================================
+# DataCollector (Apigee X の カスタム Analytics ディメンション)
+# DataCapture ポリシーが参照する DataCollector を事前登録
+# ============================================================
+resource "google_apigee_data_collector" "user_email" {
+  org_id            = "organizations/${var.org_id}"
+  data_collector_id = "dc_user_email"
+  description       = "IAP user email"
+  type              = "STRING"
+}
+
+resource "google_apigee_data_collector" "model_action" {
+  org_id            = "organizations/${var.org_id}"
+  data_collector_id = "dc_model_action"
+  description       = "Vertex AI model:action"
+  type              = "STRING"
+}
+
+resource "google_apigee_data_collector" "target_region" {
+  org_id            = "organizations/${var.org_id}"
+  data_collector_id = "dc_target_region"
+  description       = "Target region (global or regional)"
+  type              = "STRING"
+}
+
+resource "google_apigee_data_collector" "prompt_token_count" {
+  org_id            = "organizations/${var.org_id}"
+  data_collector_id = "dc_prompt_token_count"
+  description       = "Prompt token count"
+  type              = "INTEGER"
+}
+
+resource "google_apigee_data_collector" "candidates_token_count" {
+  org_id            = "organizations/${var.org_id}"
+  data_collector_id = "dc_candidates_token_count"
+  description       = "Candidates (output) token count"
+  type              = "INTEGER"
+}
+
+resource "google_apigee_data_collector" "total_token_count" {
+  org_id            = "organizations/${var.org_id}"
+  data_collector_id = "dc_total_token_count"
+  description       = "Total token count"
+  type              = "INTEGER"
+}
+
 resource "google_apigee_api" "vertexai_proxy" {
-  org_id          = var.org_id
-  name            = "vertexai-proxy"
-  config_bundle   = data.archive_file.proxy_bundle.output_path
-  detect_md5hash  = data.archive_file.proxy_bundle.output_md5
+  org_id         = var.org_id
+  name           = "vertexai-proxy"
+  config_bundle  = data.archive_file.proxy_bundle.output_path
+  detect_md5hash = data.archive_file.proxy_bundle.output_md5
 
   depends_on = [google_project_iam_member.vertexai_proxy_iam]
 }
