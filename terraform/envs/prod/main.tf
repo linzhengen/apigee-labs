@@ -65,7 +65,7 @@ resource "google_artifact_registry_repository" "docker" {
 #
 # CIDR 配分計画:
 #   10.0.0.0/16    — ユーザー管理サブネット
-#     10.0.1.0/26  — Cloud Run UI (Direct VPC Egress, 将来の動的 UI 用)
+#     10.0.1.0/26  — Cloud Run UI (Direct VPC Egress, UI 用)
 #     10.0.1.64/26 — Cloud Run backend  (Direct VPC Egress)
 #     10.0.2.0/28  — PSC NEG (Apigee → LB 接続用)
 #   10.100.0.0/22  — Apigee X ランタイム (peering_cidr_range = SLASH_22)
@@ -85,7 +85,7 @@ module "vpc" {
       subnet_ip             = "10.0.1.0/26"
       subnet_region         = var.region
       subnet_private_access = "true"
-      description           = "Cloud Run UI - Direct VPC Egress (将来の動的 UI 用)"
+      description           = "Cloud Run UI - Direct VPC Egress (UI 用)"
     },
     {
       subnet_name           = "run-backend"

@@ -6,33 +6,38 @@ IAP 認証・Vertex AI 統合を含む、本番レベルのアーキテクチャ
 ## Architecture
 
 ```
-                         ┌───────────────────────────────────────────────────────┐
-                         │                     GCP Project                      │
-                         │                                                      │
-┌──────────┐   HTTPS     │  ┌──────────────┐    ┌─────────────────────┐         │
-│          │ ──────────► │  │ Global HTTPS │───►│  IAP                │         │
-│ Browser  │             │  │ LB + SSL     │    │  (Google OAuth 2.0) │         │
-│          │ ◄────────── │  └──────┬───────┘    │  全 Backend Service │         │
-└──────────┘             │         │             │  に適用             │         │
-                         │         │ URL Map     └──────────┬──────────┘         │
-                         │    ┌────┴────┐                   │                   │
-                         │    │         │          JWT 検証 OK                   │
-                         │    ▼         ▼                   │                   │
-                         │ /ui/*     /api/*                 │                   │
-                         │    │         │                   │                   │
-                         │    ▼         ▼                   │                   │
-                         │ ┌────────┐ ┌──────────────────┐  │                   │
-                         │ │Cloud   │ │    Apigee X      │◄─┘                   │
-                         │ │Run     │ │                  │                      │
-                         │ │frontend│ │ vertexai-proxy   │──► Vertex AI API     │
-                         │ │-service│ │ backend-proxy    │──► Cloud Run backend │
-                         │ │(nginx) │ │ {service}-proxy  │──► Future services   │
-                         │ └────────┘ └──────────────────┘                      │
-                         └───────────────────────────────────────────────────────┘
+                       ┌──────────────────────────────────────────────────────────┐
+                       │                       GCP Project                       │
+                       │                                                         │
+┌──────────┐  HTTPS    │  ┌──────────────┐                                       │
+│          │ ────────► │  │ Global HTTPS │                                       │
+│ Browser  │           │  │ LB + SSL     │                                       │
+│          │ ◄──────── │  └──────┬───────┘                                       │
+└──────────┘           │         │ URL Map                                       │
+                       │    ┌────┴────┐                                          │
+                       │    ▼         ▼                                          │
+                       │ /ui/*     /api/*                                        │
+                       │    │         │                                          │
+                       │    ▼         ▼                                          │
+                       │ ┌─────────────────┐  ┌─────────────────────────────┐    │
+                       │ │ Backend Service │  │ Backend Service             │    │
+                       │ │ (IAP enabled)   │  │ (IAP enabled)              │    │
+                       │ │                 │  │                             │    │
+                       │ │  ┌───────────┐  │  │  ┌───────────────────────┐  │    │
+                       │ │  │Cloud Run  │  │  │  │ Apigee X (PSC NEG)   │  │    │
+                       │ │  │frontend   │  │  │  │                       │  │    │
+                       │ │  │-service   │  │  │  │ vertexai-proxy        │  │    │
+                       │ │  │(nginx)    │  │  │  │  JWT→email,SpikeArrest│  │    │
+                       │ │  │           │  │  │  │  Quota,Token Tracking │──┼──► Vertex AI
+                       │ │  │           │  │  │  │ backend-proxy (OIDC)  │──┼──► Cloud Run
+                       │ │  │           │  │  │  │ {service}-proxy       │──┼──► Future
+                       │ │  └───────────┘  │  │  └───────────────────────┘  │    │
+                       │ └─────────────────┘  └─────────────────────────────┘    │
+                       └──────────────────────────────────────────────────────────┘
 
-  IAP 適用範囲:
-    ✅ Cloud Run frontend (Backend Service) — /ui/*
-    ✅ Apigee X (Backend Service)           — /api/*
+  IAP は各 Backend Service に適用:
+    ✅ Backend Service (Cloud Run frontend) — /ui/*
+    ✅ Backend Service (Apigee X PSC NEG)   — /api/*
     → 同一ドメインの IAP Cookie で全パスを保護
 ```
 
@@ -66,7 +71,7 @@ graph TB
     end
 
     subgraph ApigeeX["Apigee X"]
-      VP["vertexai-proxy<br/>/api/vertexai"]
+      VP["vertexai-proxy<br/>/api/vertexai<br/>SpikeArrest + Quota + Token Tracking"]
       BP["backend-proxy<br/>/api/backend"]
       SP["...-proxy<br/>/api/{service}"]
     end
@@ -95,8 +100,8 @@ graph TB
   R_API -->|Hybrid NEG| AI
   AI --> VP & BP & SP
   VP -->|GoogleAccessToken| VAI
-  BP -->|GoogleAccessToken| CR_BE
-  SP -.->|GoogleAccessToken| Future
+  BP -->|GoogleIDToken| CR_BE
+  SP -.->|GoogleIDToken| Future
   CR_BE --- SUB_BE
 ```
 
@@ -129,18 +134,22 @@ sequenceDiagram
   FE-->>B: index.html (nginx)
 
   Note over B,BE: 3. Vertex AI API
-  B->>LB: POST /api/vertexai/v1/models/gemini-2.0-flash:generateContent
+  B->>LB: POST /api/vertexai/v1/models/gemini-2.5-flash:generateContent
   LB->>IAP: JWT 検証 OK (same domain cookie)
-  IAP->>AG: Hybrid NEG
+  IAP->>AG: PSC NEG
+  AG->>AG: Decode IAP JWT (user email)
+  AG->>AG: SpikeArrest + Quota check
   AG->>AG: Remove client auth + GoogleAccessToken
   AG->>VAI: POST /v1/projects/.../models/...
-  VAI-->>B: Response
+  VAI-->>AG: Response (with usageMetadata)
+  AG->>AG: Extract token counts → Analytics
+  AG-->>B: Response (with X-Quota-* headers)
 
   Note over B,BE: 4. Backend API
   B->>LB: POST /api/backend/v1/chat
   LB->>IAP: JWT 検証 OK
-  IAP->>AG: Hybrid NEG
-  AG->>AG: Remove client auth + GoogleAccessToken
+  IAP->>AG: PSC NEG
+  AG->>AG: Remove client auth + GoogleIDToken
   AG->>BE: POST /v1/chat
   BE-->>B: Response
 ```
