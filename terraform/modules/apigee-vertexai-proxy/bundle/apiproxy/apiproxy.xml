@@ -3,12 +3,19 @@
   <Description>Vertex AI Proxy - all models via Global/Regional Endpoint</Description>
   <BasePaths>/api/vertexai</BasePaths>
   <Policies>
+    <Policy>DJ-DecodeIapJwt</Policy>
+    <Policy>SA-SpikeArrest</Policy>
+    <Policy>QU-PerUserQuota</Policy>
     <Policy>AM-RemoveClientAuth</Policy>
     <Policy>EV-ExtractModelPath</Policy>
     <Policy>AM-ResolveRegion</Policy>
     <Policy>AM-SetRegionalHost</Policy>
     <Policy>AM-SetTargetPath</Policy>
     <Policy>RF-ModelNotFound</Policy>
+    <Policy>EV-ExtractTokenCounts</Policy>
+    <Policy>AM-CleanTokenCounts</Policy>
+    <Policy>SC-CollectUsageStats</Policy>
+    <Policy>AM-AddQuotaHeaders</Policy>
   </Policies>
   <ProxyEndpoints>
     <ProxyEndpoint>default</ProxyEndpoint>

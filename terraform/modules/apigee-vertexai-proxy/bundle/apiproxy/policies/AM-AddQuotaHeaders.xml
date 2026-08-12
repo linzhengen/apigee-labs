@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!--
+  クォータの使用状況をレスポンスヘッダーに付与する。
+  フロントエンドで残量表示やユーザーへの警告に利用可能。
+-->
+<AssignMessage name="AM-AddQuotaHeaders">
+  <AssignTo createNew="false" type="response"/>
+  <Set>
+    <Headers>
+      <Header name="X-Quota-Limit">{ratelimit.QU-PerUserQuota.allowed.count}</Header>
+      <Header name="X-Quota-Used">{ratelimit.QU-PerUserQuota.used.count}</Header>
+      <Header name="X-Quota-Remaining">{ratelimit.QU-PerUserQuota.available.count}</Header>
+    </Headers>
+  </Set>
+</AssignMessage>

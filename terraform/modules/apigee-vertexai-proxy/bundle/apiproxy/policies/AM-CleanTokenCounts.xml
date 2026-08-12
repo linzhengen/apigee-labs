@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!--
+  JSONPath 抽出結果から配列括弧・引用符を除去して数値文字列にする。
+  例: ["255"] → 255
+-->
+<AssignMessage name="AM-CleanTokenCounts" continueOnError="false" enabled="true">
+  <IgnoreUnresolvedVariables>true</IgnoreUnresolvedVariables>
+  <AssignVariable>
+    <Name>brackets_regex</Name>
+    <Value>\[\"{0,1}|\"{0,1}\]</Value>
+  </AssignVariable>
+  <AssignVariable>
+    <Name>prompt_token_count</Name>
+    <Template>{replaceAll(prompt_token_count_raw,brackets_regex,'')}</Template>
+  </AssignVariable>
+  <AssignVariable>
+    <Name>candidates_token_count</Name>
+    <Template>{replaceAll(candidates_token_count_raw,brackets_regex,'')}</Template>
+  </AssignVariable>
+  <AssignVariable>
+    <Name>total_token_count</Name>
+    <Template>{replaceAll(total_token_count_raw,brackets_regex,'')}</Template>
+  </AssignVariable>
+</AssignMessage>

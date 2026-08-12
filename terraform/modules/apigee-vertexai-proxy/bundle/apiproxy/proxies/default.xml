@@ -6,6 +6,15 @@
 
   <PreFlow name="PreFlow">
     <Request>
+      <!-- IAP JWT からユーザーのメールアドレスを抽出 -->
+      <Step><Name>DJ-DecodeIapJwt</Name></Step>
+
+      <!-- 短時間の連続リクエストを防止 -->
+      <Step><Name>SA-SpikeArrest</Name></Step>
+
+      <!-- ユーザーごとのリクエスト数クォータ -->
+      <Step><Name>QU-PerUserQuota</Name></Step>
+
       <!-- クライアントの Authorization ヘッダーと API キーを除去 -->
       <Step><Name>AM-RemoveClientAuth</Name></Step>
 
@@ -29,7 +38,10 @@
 
       <!-- target.url の設定は TargetEndpoint PreFlow の JS-SetTargetUrl で実行 -->
     </Request>
-    <Response/>
+    <Response>
+      <!-- クォータ残量をレスポンスヘッダーに付与 -->
+      <Step><Name>AM-AddQuotaHeaders</Name></Step>
+    </Response>
   </PreFlow>
 
   <RouteRule name="default">

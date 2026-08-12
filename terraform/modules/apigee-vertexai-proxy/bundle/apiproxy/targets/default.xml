@@ -5,7 +5,17 @@
       <!-- target.url をフル URL に上書き (pathsuffix コピー後に実行) -->
       <Step><Name>AM-SetTargetPath</Name></Step>
     </Request>
-    <Response/>
+    <Response>
+      <!-- レスポンスからトークン使用量を抽出 -->
+      <Step>
+        <Name>EV-ExtractTokenCounts</Name>
+        <Condition>response.content != null</Condition>
+      </Step>
+      <!-- 配列括弧を除去して数値化 -->
+      <Step><Name>AM-CleanTokenCounts</Name></Step>
+      <!-- Analytics にトークン数を含む全統計を記録 -->
+      <Step><Name>SC-CollectUsageStats</Name></Step>
+    </Response>
   </PreFlow>
 
   <HTTPTargetConnection>
