@@ -277,8 +277,8 @@ ui_frontends = [
 
 # iap_config を指定すると全 Backend Service (UI + Apigee) に IAP 適用
 iap_config = {
-  oauth2_client_id     = module.iap.client_id
-  oauth2_client_secret = module.iap.client_secret
+  oauth2_client_id     = var.iap_oauth_client_id
+  oauth2_client_secret = var.iap_oauth_client_secret
 }
 iap_allowed_members = ["user:admin@example.com"]
 ```
@@ -328,23 +328,37 @@ gcloud iap oauth-clients create \
   "projects/YOUR_PROJECT_NUMBER/brands/YOUR_PROJECT_NUMBER" \
   --display_name="IAP OAuth Client"
 
-# 3. 出力された client_id と client_secret を terraform.tfvars に設定
+# 3. 出力された client_id と client_secret を secrets.auto.tfvars に設定
 #   iap_oauth_client_id     = "xxxx.apps.googleusercontent.com"
 #   iap_oauth_client_secret = "GOCSPX-xxxx"
 ```
 
 > **Note**: `YOUR_PROJECT_NUMBER` は `gcloud projects describe YOUR_PROJECT --format='value(projectNumber)'` で取得できます。
 
+### 設定ファイルの準備
+
+`terraform.tfvars` と `secrets.auto.tfvars` はコミットされないため、
+example ファイルからコピーして作成します。
+
+```bash
+cd terraform/envs/prod
+
+# 非機密の設定 (コミット対象)
+cp terraform.tfvars.example terraform.tfvars
+
+# 機密情報 (gitignore 対象、Terraform が自動読み込み)
+cp secrets.auto.tfvars.example secrets.auto.tfvars
+```
+
+`terraform.tfvars` にはプロジェクト ID・ドメイン・`iap_allowed_members` などの
+非機密の値を、`secrets.auto.tfvars` には IAP OAuth クライアントの
+`iap_oauth_client_id` / `iap_oauth_client_secret` を設定します。
+
 ### Deploy
 
 ```bash
 cd terraform/envs/prod
 terraform init
-terraform plan \
-  -var="project_id=YOUR_PROJECT" \
-  -var="domain=YOUR_DOMAIN" \
-  -var="iap_oauth_client_id=YOUR_CLIENT_ID" \
-  -var="iap_oauth_client_secret=YOUR_CLIENT_SECRET" \
-  -var="github_repo=OWNER/REPO"
+terraform plan
 terraform apply
 ```
