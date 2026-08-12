@@ -208,11 +208,11 @@ module "backend" {
   iam_members = [
     {
       role   = "roles/run.invoker"
-      member = "serviceAccount:apigee-backend-proxy-sa@${var.project_id}.iam.gserviceaccount.com"
+      member = "serviceAccount:${google_service_account.apigee_backend_proxy_sa.email}"
     },
   ]
 
-  depends_on = [google_project_service.apis, module.vpc]
+  depends_on = [google_project_service.apis, module.vpc, google_service_account.apigee_backend_proxy_sa]
 }
 
 # ============================================================
@@ -312,6 +312,17 @@ module "vertexai_proxy" {
 }
 
 # ============================================================
+# Apigee backend-proxy 用 SA (先に作成して backend モジュールから参照可能にする)
+# ============================================================
+resource "google_service_account" "apigee_backend_proxy_sa" {
+  project      = var.project_id
+  account_id   = "apigee-backend-proxy-sa"
+  display_name = "Apigee backend Proxy SA"
+
+  depends_on = [google_project_service.apis]
+}
+
+# ============================================================
 # 自作モジュール: Apigee サービスプロキシ (汎用)
 # /api/{service_name}/* → Cloud Run サービス
 # ============================================================
@@ -324,6 +335,7 @@ module "backend_proxy" {
   environment_name = "prod"
   service_name     = "backend"
   target_url       = module.backend.service_uri
+  proxy_sa_email   = google_service_account.apigee_backend_proxy_sa.email
 
   depends_on = [module.apigee, module.backend]
 }

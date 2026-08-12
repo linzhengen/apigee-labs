@@ -12,6 +12,7 @@ resource "google_iam_workload_identity_pool" "github" {
   workload_identity_pool_id = "github-actions"
   display_name              = "GitHub Actions"
   description               = "Workload Identity Pool for GitHub Actions OIDC"
+  deletion_policy           = "ABANDON"
 }
 
 resource "google_iam_workload_identity_pool_provider" "github" {

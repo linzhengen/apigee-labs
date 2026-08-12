@@ -15,5 +15,5 @@ output "proxy_base_path" {
 
 output "service_account_email" {
   description = "プロキシ用サービスアカウントのメールアドレス"
-  value       = google_service_account.proxy_sa.email
+  value       = local.proxy_sa_email
 }

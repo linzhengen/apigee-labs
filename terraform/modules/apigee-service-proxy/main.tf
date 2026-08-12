@@ -9,24 +9,22 @@ terraform {
 
 # ============================================================
 # サービスプロキシ専用サービスアカウント
-# Apigee がこの SA の権限で Cloud Run を呼び出す
+# proxy_sa_email が指定されている場合は外部 SA を使用し、内部作成をスキップ
 # ============================================================
+locals {
+  proxy_sa_email = coalesce(var.proxy_sa_email, try(google_service_account.proxy_sa[0].email, null))
+}
+
 resource "google_service_account" "proxy_sa" {
+  count        = var.proxy_sa_email == null ? 1 : 0
   project      = var.project_id
   account_id   = "apigee-${var.service_name}-proxy-sa"
   display_name = "Apigee ${var.service_name} Proxy SA"
 }
 
-# Cloud Run invoker 権限
-resource "google_project_iam_member" "run_invoker" {
-  project = var.project_id
-  role    = "roles/run.invoker"
-  member  = "serviceAccount:${google_service_account.proxy_sa.email}"
-}
-
 # Apigee ランタイムがこの SA のトークンを取得するために必要
 resource "google_service_account_iam_member" "apigee_token_creator" {
-  service_account_id = google_service_account.proxy_sa.name
+  service_account_id = var.proxy_sa_email != null ? "projects/${var.project_id}/serviceAccounts/${var.proxy_sa_email}" : google_service_account.proxy_sa[0].name
   role               = "roles/iam.serviceAccountTokenCreator"
   member             = "serviceAccount:service-${var.project_number}@gcp-sa-apigee.iam.gserviceaccount.com"
 }
@@ -80,7 +78,7 @@ resource "google_apigee_api" "proxy" {
   config_bundle  = data.archive_file.proxy_bundle.output_path
   detect_md5hash = data.archive_file.proxy_bundle.output_md5
 
-  depends_on = [google_project_iam_member.run_invoker]
+  depends_on = [google_service_account_iam_member.apigee_token_creator]
 }
 
 # ============================================================
@@ -91,5 +89,5 @@ resource "google_apigee_api_deployment" "proxy" {
   environment     = var.environment_name
   proxy_id        = google_apigee_api.proxy.name
   revision        = google_apigee_api.proxy.latest_revision_id
-  service_account = google_service_account.proxy_sa.email
+  service_account = local.proxy_sa_email
 }

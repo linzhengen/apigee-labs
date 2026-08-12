@@ -27,3 +27,9 @@ variable "target_url" {
   description = "ターゲット Cloud Run サービスの URL (例: https://backend-service-xxx.a.run.app)"
   type        = string
 }
+
+variable "proxy_sa_email" {
+  description = "外部で作成済みの Proxy SA メールアドレス。未指定時はモジュール内で SA を作成する"
+  type        = string
+  default     = null
+}

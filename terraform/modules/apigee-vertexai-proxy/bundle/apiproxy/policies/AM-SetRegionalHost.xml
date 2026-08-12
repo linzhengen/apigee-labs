@@ -8,6 +8,6 @@
   <AssignTo createNew="false" type="request"/>
   <AssignVariable>
     <Name>resolvedHost</Name>
-    <Value>{targetRegion}-aiplatform.googleapis.com</Value>
+    <Template>{targetRegion}-aiplatform.googleapis.com</Template>
   </AssignVariable>
 </AssignMessage>
