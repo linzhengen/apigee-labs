@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <!--
   IAP が付与した X-Goog-IAP-JWT-Assertion ヘッダーをデコードし、
-  ユーザーのメールアドレスを iapUserEmail 変数に格納する。
+  ユーザーのメールアドレスを jwt.DJ-DecodeIapJwt.claim.email として公開する
+  (下流の SpikeArrest / Quota / DataCapture が直接参照)。
   署名検証は IAP が保証済みのため、ここではデコードのみ行う。
 -->
 <DecodeJWT name="DJ-DecodeIapJwt">

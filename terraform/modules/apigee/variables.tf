@@ -3,9 +3,11 @@ variable "project_id" {
   type        = string
 }
 
-variable "region" {
-  description = "Apigee インスタンスを配置するリージョン"
-  type        = string
+variable "instances" {
+  description = "作成する Apigee インスタンスのマップ (キー = リージョン)"
+  type = map(object({
+    support_cidr_range = string # トラブルシューティング用 /28 (例: 10.100.4.0/28)
+  }))
 }
 
 variable "network_id" {
@@ -14,7 +16,7 @@ variable "network_id" {
 }
 
 variable "analytics_region" {
-  description = "Apigee アナリティクスのリージョン"
+  description = "Apigee アナリティクスのリージョン (未指定時は instances の先頭キー)"
   type        = string
   default     = ""
 }
@@ -31,11 +33,6 @@ variable "billing_type" {
   description = "Apigee の課金タイプ (EVALUATION, PAYG, SUBSCRIPTION)"
   type        = string
   default     = "EVALUATION"
-}
-
-variable "support_cidr_range" {
-  description = "Apigee トラブルシューティング用 /28 CIDR レンジ (例: 10.100.4.0/28)"
-  type        = string
 }
 
 # 削除時の動作 (billing_type × retention):

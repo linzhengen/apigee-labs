@@ -19,12 +19,12 @@ terraform {
 
 provider "google" {
   project = var.project_id
-  region  = var.region
+  region  = var.regions[0]
 }
 
 provider "google-beta" {
   project = var.project_id
-  region  = var.region
+  region  = var.regions[0]
 }
 
 # 必要 API の有効化
@@ -51,7 +51,7 @@ data "google_project" "project" {
 
 # Artifact Registry (Docker リポジトリ)
 resource "google_artifact_registry_repository" "docker" {
-  location      = var.region
+  location      = var.regions[0]
   project       = var.project_id
   repository_id = "docker"
   format        = "DOCKER"
@@ -61,15 +61,34 @@ resource "google_artifact_registry_repository" "docker" {
 }
 
 # ============================================================
-# VPC + サブネット
+# リージョンごとの CIDR 割当
 #
-# CIDR 配分計画:
-#   10.0.0.0/16    — ユーザー管理サブネット
-#     10.0.1.0/26  — Cloud Run UI (Direct VPC Egress, UI 用)
-#     10.0.1.64/26 — Cloud Run backend  (Direct VPC Egress)
-#     10.0.2.0/28  — PSC NEG (Apigee → LB 接続用)
-#   10.100.0.0/22  — Apigee ランタイム (peering_cidr_range = SLASH_22)
-#   10.100.4.0/28  — Apigee トラブルシューティング (ip_range = /28)
+# マルチリージョン拡張時は、ここにリージョンを追記し、
+# variables.tf の regions リストにも追加する。
+#
+# ユーザー管理サブネット (10.0.0.0/16):
+#   psc_cidr     — PSC NEG (Apigee → LB 接続用、リージョン毎)
+# Apigee peering (10.100.0.0/16):
+#   runtime_cidr — ランタイム /22 (リージョン毎)
+#   support_cidr — トラブルシューティング /28 (リージョン毎)
+# ============================================================
+locals {
+  region_networks = {
+    "asia-northeast1" = {
+      psc_cidr     = "10.0.2.0/28"
+      runtime_cidr = "10.100.0.0/22"
+      support_cidr = "10.100.4.0/28"
+    }
+    "asia-northeast2" = {
+      psc_cidr     = "10.0.3.0/28"
+      runtime_cidr = "10.100.8.0/22"
+      support_cidr = "10.100.12.0/28"
+    }
+  }
+}
+
+# ============================================================
+# VPC + サブネット
 # ============================================================
 module "vpc" {
   source  = "terraform-google-modules/network/google"
@@ -80,81 +99,49 @@ module "vpc" {
   routing_mode = "GLOBAL"
 
   subnets = [
-    {
-      subnet_name           = "run-ui"
-      subnet_ip             = "10.0.1.0/26"
-      subnet_region         = var.region
-      subnet_private_access = "true"
-      description           = "Cloud Run UI - Direct VPC Egress (UI 用)"
-    },
-    {
-      subnet_name           = "run-backend"
-      subnet_ip             = "10.0.1.64/26"
-      subnet_region         = var.region
-      subnet_private_access = "true"
-      description           = "Cloud Run backend - Direct VPC Egress"
-    },
-    {
-      subnet_name           = "psc-apigee"
-      subnet_ip             = "10.0.2.0/28"
-      subnet_region         = var.region
+    for r in var.regions : {
+      subnet_name           = "psc-apigee-${r}"
+      subnet_ip             = local.region_networks[r].psc_cidr
+      subnet_region         = r
       subnet_private_access = "true"
       subnet_purpose        = "PRIVATE_SERVICE_CONNECT"
       description           = "PSC NEG for Apigee LB connection"
-    },
+    }
   ]
 
   depends_on = [google_project_service.apis]
 }
 
-# Cloud Run → Apigee peering レンジへの HTTPS 通信を許可
-resource "google_compute_firewall" "run_to_apigee" {
-  name      = "allow-run-to-apigee"
-  network   = module.vpc.network_name
-  project   = var.project_id
-  direction = "EGRESS"
-  priority  = 900
-
-  allow {
-    protocol = "tcp"
-    ports    = ["443"]
-  }
-
-  # Apigee peering レンジのみに限定
-  destination_ranges = ["10.100.0.0/22", "10.100.4.0/28"]
-
-  depends_on = [module.vpc]
-}
-
-
-# Apigee 用プライベート IP レンジ (/22: ランタイム)
+# Apigee 用プライベート IP レンジ (/22: ランタイム) — リージョン毎
 resource "google_compute_global_address" "apigee_peering" {
-  name          = "apigee-peering-range"
+  for_each      = toset(var.regions)
+  name          = "apigee-peering-range-${each.key}"
   purpose       = "VPC_PEERING"
   address_type  = "INTERNAL"
-  address       = "10.100.0.0"
-  prefix_length = 22
+  address       = cidrhost(local.region_networks[each.key].runtime_cidr, 0)
+  prefix_length = tonumber(split("/", local.region_networks[each.key].runtime_cidr)[1])
   network       = module.vpc.network_id
 }
 
-# Apigee 用プライベート IP レンジ (/28: トラブルシューティング)
+# Apigee 用プライベート IP レンジ (/28: トラブルシューティング) — リージョン毎
 resource "google_compute_global_address" "apigee_support_range" {
-  name          = "apigee-support-range"
+  for_each      = toset(var.regions)
+  name          = "apigee-support-range-${each.key}"
   purpose       = "VPC_PEERING"
   address_type  = "INTERNAL"
-  address       = "10.100.4.0"
-  prefix_length = 28
+  address       = cidrhost(local.region_networks[each.key].support_cidr, 0)
+  prefix_length = tonumber(split("/", local.region_networks[each.key].support_cidr)[1])
   network       = module.vpc.network_id
 }
 
-# サービスネットワーキング ピアリング (/22 と /28 の両方を含める)
+# サービスネットワーキング ピアリング (全リージョンの /22 と /28 を含める)
 resource "google_service_networking_connection" "apigee_peering" {
   network = module.vpc.network_id
   service = "servicenetworking.googleapis.com"
-  reserved_peering_ranges = [
-    google_compute_global_address.apigee_peering.name,
-    google_compute_global_address.apigee_support_range.name,
-  ]
+  reserved_peering_ranges = concat(
+    [for r in var.regions : google_compute_global_address.apigee_peering[r].name],
+    [for r in var.regions : google_compute_global_address.apigee_support_range[r].name],
+  )
   depends_on = [google_project_service.apis]
 }
 
@@ -162,15 +149,27 @@ resource "google_service_networking_connection" "apigee_peering" {
 # 自作モジュール: Cloud Run (フロントエンド)
 #
 # イメージは CI/CD で更新。Terraform は箱の管理のみ。
+# Cloud Run サービスはリージョナルだが SA はプロジェクト単位のため、
+# 全リージョンで単一 SA を共有する。
 # ============================================================
-module "frontend" {
-  source = "../../modules/cloud-run-service"
+resource "google_service_account" "frontend_sa" {
+  project      = var.project_id
+  account_id   = "frontend-service-sa"
+  display_name = "Cloud Run frontend-service SA"
 
-  service_name = "frontend-service"
-  project_id   = var.project_id
-  region       = var.region
-  image        = var.frontend_image
-  ingress      = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
+  depends_on = [google_project_service.apis]
+}
+
+module "frontend" {
+  for_each = toset(var.regions)
+  source   = "../../modules/cloud-run-service"
+
+  service_name          = "frontend-service"
+  project_id            = var.project_id
+  region                = each.key
+  image                 = var.frontend_image
+  ingress               = "INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER"
+  service_account_email = google_service_account.frontend_sa.email
 
   # IAP SA に Cloud Run invoker 権限を付与 (IAP → Cloud Run 連携に必要)
   iam_members = [
@@ -187,22 +186,18 @@ module "frontend" {
 # 自作モジュール: Cloud Run (バックエンド)
 #
 # Apigee (VPC 内部) からのみ受信。
+# ネイティブ マルチリージョン (location=global) で全リージョンに展開。
+# Apigee プロキシの target_url は単一 URL のため、引き続き primary の
+# service_uri を指す (大阪は warm standby)。
 # ============================================================
 module "backend" {
   source = "../../modules/cloud-run-service"
 
-  service_name = "backend-service"
-  project_id   = var.project_id
-  region       = var.region
-  image        = var.backend_image
-  ingress      = "INGRESS_TRAFFIC_ALL"
-
-  # Direct VPC Egress: backend 専用サブネット
-  vpc_access = {
-    network    = module.vpc.network_id
-    subnetwork = module.vpc.subnets["${var.region}/run-backend"].id
-    egress     = "PRIVATE_RANGES_ONLY"
-  }
+  service_name         = "backend-service"
+  project_id           = var.project_id
+  multi_region_regions = var.regions
+  image                = var.backend_image
+  ingress              = "INGRESS_TRAFFIC_ALL"
 
   # Apigee proxy SA に invoker 権限を付与 (IAM で認証・認可を担保)
   iam_members = [
@@ -212,7 +207,7 @@ module "backend" {
     },
   ]
 
-  depends_on = [google_project_service.apis, module.vpc, google_service_account.apigee_backend_proxy_sa]
+  depends_on = [google_project_service.apis, google_service_account.apigee_backend_proxy_sa]
 }
 
 # ============================================================
@@ -221,12 +216,19 @@ module "backend" {
 module "apigee" {
   source = "../../modules/apigee"
 
-  project_id         = var.project_id
-  region             = var.region
-  network_id         = module.vpc.network_id
-  support_cidr_range = "10.100.4.0/28"
+  project_id = var.project_id
+  network_id = module.vpc.network_id
+  instances = {
+    for r in var.regions : r => {
+      support_cidr_range = local.region_networks[r].support_cidr
+    }
+  }
   # billing_type デフォルト: EVALUATION (即削除可能)
   # 本番移行時は PAYG または SUBSCRIPTION に変更する
+  #
+  # 注意: EVALUATION (評価) 組織は単一リージョンのみ。
+  #       マルチリージョン (複数 Apigee インスタンス) は PAYG / SUBSCRIPTION が必要。
+  #       regions に 2 つ以上指定する場合は billing_type を変更すること。
 
   environments = [
     {
@@ -259,14 +261,14 @@ module "lb" {
 
   name       = "app"
   project_id = var.project_id
-  region     = var.region
+  regions    = var.regions
   domain     = var.domain
 
   # UI フロントエンド (Cloud Run + IAP)
   ui_frontends = [
     {
       name                   = "main"
-      cloud_run_service_name = module.frontend.service_name
+      cloud_run_service_name = module.frontend[var.regions[0]].service_name
     },
   ]
 
@@ -281,9 +283,13 @@ module "lb" {
 
   # Apigee 接続 (PSC NEG 経由で /api/* → Apigee にルーティング)
   apigee_config = {
-    service_attachment = module.apigee.service_attachment
-    network_self_link  = module.vpc.network_self_link
-    psc_subnetwork     = module.vpc.subnets["${var.region}/psc-apigee"].self_link
+    network_self_link = module.vpc.network_self_link
+    instances = {
+      for r in var.regions : r => {
+        service_attachment = module.apigee.service_attachment[r]
+        psc_subnetwork     = module.vpc.subnets["${r}/psc-apigee-${r}"].self_link
+      }
+    }
   }
 
   depends_on = [

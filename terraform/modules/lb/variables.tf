@@ -8,9 +8,9 @@ variable "project_id" {
   type        = string
 }
 
-variable "region" {
-  description = "Serverless NEG / Cloud Run リージョン"
-  type        = string
+variable "regions" {
+  description = "UI Serverless NEG / Apigee PSC NEG を配置するリージョン一覧"
+  type        = list(string)
 }
 
 variable "domain" {
@@ -61,9 +61,11 @@ variable "iap_allowed_members" {
 variable "apigee_config" {
   description = "Apigee 接続設定 (PSC NEG)。null の場合は Apigee バックエンドを作成しない"
   type = object({
-    service_attachment = string
-    network_self_link  = string
-    psc_subnetwork     = string
+    network_self_link = string
+    instances = map(object({ # キー = リージョン
+      service_attachment = string
+      psc_subnetwork     = string
+    }))
   })
   default = null
 }
