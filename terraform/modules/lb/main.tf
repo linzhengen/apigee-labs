@@ -25,15 +25,22 @@ resource "google_compute_managed_ssl_certificate" "this" {
 # UI フロントエンド (Cloud Run + Serverless NEG + IAP)
 # ============================================================
 resource "google_compute_region_network_endpoint_group" "ui" {
-  for_each = { for f in var.ui_frontends : f.name => f }
+  for_each = {
+    for pair in setproduct(var.ui_frontends, var.regions) :
+    "${pair[0].name}-${pair[1]}" => {
+      name         = pair[0].name
+      service_name = pair[0].cloud_run_service_name
+      region       = pair[1]
+    }
+  }
 
-  name                  = "${var.name}-ui-${each.key}-neg"
+  name                  = "${var.name}-ui-${each.value.name}-${each.value.region}-neg"
   project               = var.project_id
   network_endpoint_type = "SERVERLESS"
-  region                = var.region
+  region                = each.value.region
 
   cloud_run {
-    service = each.value.cloud_run_service_name
+    service = each.value.service_name
   }
 }
 
@@ -46,8 +53,11 @@ resource "google_compute_backend_service" "ui" {
   load_balancing_scheme = "EXTERNAL_MANAGED"
   timeout_sec           = 30
 
-  backend {
-    group = google_compute_region_network_endpoint_group.ui[each.key].id
+  dynamic "backend" {
+    for_each = var.regions
+    content {
+      group = google_compute_region_network_endpoint_group.ui["${each.key}-${backend.value}"].id
+    }
   }
 
   # IAP: iap_config が指定された場合に有効化
@@ -92,16 +102,16 @@ resource "google_iap_web_backend_service_iam_member" "ui" {
 # PSC NEG: Apigee インスタンスの service_attachment 経由で接続
 # ヘルスチェックは PSC 側で自動管理されるため不要
 resource "google_compute_region_network_endpoint_group" "apigee" {
-  count = var.apigee_config != null ? 1 : 0
+  for_each = var.apigee_config != null ? var.apigee_config.instances : {}
 
-  name                  = "${var.name}-apigee-psc-neg"
+  name                  = "${var.name}-apigee-psc-neg-${each.key}"
   project               = var.project_id
-  region                = var.region
+  region                = each.key
   network_endpoint_type = "PRIVATE_SERVICE_CONNECT"
-  psc_target_service    = var.apigee_config.service_attachment
+  psc_target_service    = each.value.service_attachment
 
   network    = var.apigee_config.network_self_link
-  subnetwork = var.apigee_config.psc_subnetwork
+  subnetwork = each.value.psc_subnetwork
 }
 
 resource "google_compute_backend_service" "apigee" {
@@ -113,8 +123,11 @@ resource "google_compute_backend_service" "apigee" {
   load_balancing_scheme = "EXTERNAL_MANAGED"
   timeout_sec           = 60
 
-  backend {
-    group = google_compute_region_network_endpoint_group.apigee[0].id
+  dynamic "backend" {
+    for_each = var.apigee_config.instances
+    content {
+      group = google_compute_region_network_endpoint_group.apigee[backend.key].id
+    }
   }
 
   # IAP: iap_config が指定された場合に有効化

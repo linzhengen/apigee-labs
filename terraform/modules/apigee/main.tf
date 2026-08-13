@@ -1,5 +1,5 @@
 locals {
-  analytics_region = var.analytics_region != "" ? var.analytics_region : var.region
+  analytics_region = var.analytics_region != "" ? var.analytics_region : keys(var.instances)[0]
 }
 
 # Apigee Organization
@@ -16,11 +16,12 @@ resource "google_apigee_organization" "this" {
 # Apigee インスタンス (リージョン単位)
 # /22: ランタイムプレーン用、/28: トラブルシューティング用
 resource "google_apigee_instance" "this" {
-  name               = "apigee-${var.region}"
-  location           = var.region
+  for_each           = var.instances
+  name               = "apigee-${each.key}"
+  location           = each.key
   org_id             = google_apigee_organization.this.id
   peering_cidr_range = "SLASH_22"
-  ip_range           = var.support_cidr_range
+  ip_range           = each.value.support_cidr_range
 }
 
 # 環境・環境グループをループで作成
@@ -33,9 +34,15 @@ resource "google_apigee_environment" "this" {
 }
 
 resource "google_apigee_instance_attachment" "this" {
-  for_each    = google_apigee_environment.this
-  instance_id = google_apigee_instance.this.id
-  environment = each.value.name
+  for_each = {
+    for pair in setproduct(keys(google_apigee_instance.this), keys(google_apigee_environment.this)) :
+    "${pair[0]}-${pair[1]}" => {
+      instance    = pair[0]
+      environment = pair[1]
+    }
+  }
+  instance_id = google_apigee_instance.this[each.value.instance].id
+  environment = each.value.environment
 }
 
 resource "google_apigee_envgroup" "this" {

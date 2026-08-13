@@ -2,9 +2,10 @@ variable "project_id" {
   type = string
 }
 
-variable "region" {
-  type    = string
-  default = "asia-northeast1"
+variable "regions" {
+  description = "frontend / Apigee をデプロイするリージョン一覧 (1 つ目が primary。backend は常に primary)"
+  type        = list(string)
+  default     = ["asia-northeast1"]
 }
 
 variable "domain" {

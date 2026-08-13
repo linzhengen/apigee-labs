@@ -7,13 +7,13 @@
 <ExtractVariables name="EV-ExtractTokenCounts" continueOnError="false" enabled="true">
   <IgnoreUnresolvedVariables>true</IgnoreUnresolvedVariables>
   <JSONPayload>
-    <Variable name="prompt_token_count_raw">
+    <Variable name="promptTokenCountRaw">
       <JSONPath>$.[?(@.usageMetadata.promptTokenCount&gt;0)].usageMetadata.promptTokenCount</JSONPath>
     </Variable>
-    <Variable name="candidates_token_count_raw">
+    <Variable name="candidatesTokenCountRaw">
       <JSONPath>$.[?(@.usageMetadata.promptTokenCount&gt;0)].usageMetadata.candidatesTokenCount</JSONPath>
     </Variable>
-    <Variable name="total_token_count_raw">
+    <Variable name="totalTokenCountRaw">
       <JSONPath>$.[?(@.usageMetadata.promptTokenCount&gt;0)].usageMetadata.totalTokenCount</JSONPath>
     </Variable>
   </JSONPayload>

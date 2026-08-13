@@ -15,5 +15,5 @@ output "service_id" {
 
 output "service_account_email" {
   description = "サービス専用サービスアカウントのメールアドレス"
-  value       = google_service_account.this.email
+  value       = local.sa_email
 }

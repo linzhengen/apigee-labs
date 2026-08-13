@@ -4,8 +4,8 @@ output "lb_ip_address" {
 }
 
 output "frontend_url" {
-  description = "フロントエンド Cloud Run URL"
-  value       = module.frontend.service_uri
+  description = "フロントエンド Cloud Run URL (primary リージョン)"
+  value       = module.frontend[var.regions[0]].service_uri
 }
 
 output "backend_url" {

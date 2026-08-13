@@ -3,14 +3,27 @@ variable "service_name" {
   type        = string
 }
 
+variable "service_account_email" {
+  description = "既存 SA の email。指定時はモジュール内で SA を作成しない（マルチリージョンで共有する場合に使用）"
+  type        = string
+  default     = null
+}
+
 variable "project_id" {
   description = "GCP プロジェクト ID"
   type        = string
 }
 
 variable "region" {
-  description = "Cloud Run リージョン"
+  description = "Cloud Run リージョン (multi_region_regions 指定時は不要)"
   type        = string
+  default     = null
+}
+
+variable "multi_region_regions" {
+  description = "Cloud Run ネイティブ マルチリージョンの展開リージョン一覧。2 リージョン以上で location=global のマルチリージョンになり、1 リージョンなら単一リージョン サービスとして扱われる (region を指定した場合と同じ)"
+  type        = list(string)
+  default     = null
 }
 
 variable "image" {

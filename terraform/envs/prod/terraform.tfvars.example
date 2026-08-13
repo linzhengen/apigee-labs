@@ -1,5 +1,7 @@
 project_id        = "my-gcp-project"
-region            = "asia-northeast1"
+# 大阪追加時: regions = ["asia-northeast1", "asia-northeast2"]
+#   ※ main.tf の locals.region_networks に asia-northeast2 の CIDR を追記すること
+regions           = ["asia-northeast1"]
 domain            = "app.example.com"
 
 iap_allowed_members = [

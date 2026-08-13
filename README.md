@@ -78,14 +78,12 @@ graph TB
 
     subgraph Backends["Backend"]
       VAI["Vertex AI API<br/>Gemini 2.0 Flash / 1.5 Pro<br/>(Global / Regional)"]
-      CR_BE["Cloud Run<br/>backend-service<br/>(FastAPI Agent)"]
+      CR_BE["Cloud Run<br/>backend-service<br/>(FastAPI Agent, multi-region)"]
       Future["Future Services<br/>MCP / gRPC / ..."]
     end
 
     subgraph VPC["VPC: main-vpc"]
-      SUB_UI["run-ui<br/>10.0.1.0/26"]
-      SUB_BE["run-backend<br/>10.0.1.64/26"]
-      subgraph Peering["VPC Peering (10.100.0.0/22)"]
+      subgraph Peering["VPC Peering (リージョン毎)"]
         AI["Apigee Instance"]
       end
     end
@@ -102,7 +100,6 @@ graph TB
   VP -->|GoogleAccessToken| VAI
   BP -->|GoogleIDToken| CR_BE
   SP -.->|GoogleIDToken| Future
-  CR_BE --- SUB_BE
 ```
 
 ### Request Flow
@@ -158,23 +155,63 @@ sequenceDiagram
 
 ```mermaid
 graph TB
-  subgraph VPC["VPC: main-vpc"]
+  subgraph VPC["VPC: main-vpc (Global)"]
     subgraph Subnets["User-managed Subnets (10.0.0.0/16)"]
-      S1["run-ui<br/>10.0.1.0/26<br/>(将来の動的 UI 用)"]
-      S2["run-backend<br/>10.0.1.64/26<br/>(Cloud Run backend)"]
+      PSC1["psc-apigee-asia-northeast1<br/>10.0.2.0/28 (PSC NEG)"]
+      PSC2["psc-apigee-asia-northeast2<br/>10.0.3.0/28 (PSC NEG)"]
     end
-    subgraph Peering["VPC Peering"]
-      AP["Apigee Instance<br/>10.100.0.0/22 (ランタイム)"]
-      TS["Apigee Troubleshooting<br/>10.100.4.0/28"]
+    subgraph Peering["VPC Peering (リージョン毎)"]
+      AP1["Apigee Instance (東京)<br/>runtime 10.100.0.0/22<br/>support 10.100.4.0/28"]
+      AP2["Apigee Instance (大阪)<br/>runtime 10.100.8.0/22<br/>support 10.100.12.0/28"]
     end
-    S2 -->|Direct VPC Egress| AP
-    FW["Firewall: allow-run-to-apigee<br/>EGRESS TCP:443 → 10.100.0.0/22, 10.100.4.0/28"]
   end
 ```
 
 > **Note**: Apigee インスタンスには /22（ランタイム）と /28（トラブルシューティング）の 2 つの CIDR レンジが必要です。
 > 両方をサービスネットワーキングの予約レンジに含め、VPC ピアリングで接続します。
 > 詳細: [Apigee ネットワーキング オプション](https://docs.cloud.google.com/apigee/docs/api-platform/get-started/networking-options)
+
+### マルチリージョン拡張
+
+frontend（Cloud Run SPA）・backend（FastAPI エージェント）・Apigee ランタイムは
+`regions` リストで複数リージョンに展開できます。
+
+- frontend / Apigee: `regions` を `for_each` で展開（リージョン毎に独立リソース）。
+- backend: Cloud Run ネイティブ マルチリージョン（`location = "global"` + `multi_region_settings`）で
+  1 サービスを全リージョンに展開。
+- Apigee プロキシの `target_url` は単一 URL のため、backend は primary（東京）の
+  `service_uri` を指し、追加リージョンは warm standby（フェイルオーバーは follow-up）。
+
+リージョン追加手順:
+
+1. `terraform/envs/prod/terraform.tfvars` の `regions` にリージョンを追記:
+   ```hcl
+   regions = ["asia-northeast1", "asia-northeast2"]
+   ```
+2. `terraform/envs/prod/main.tf` の `locals.region_networks` に CIDR を追記:
+   ```hcl
+   locals {
+     region_networks = {
+       "asia-northeast1" = {
+         psc_cidr     = "10.0.2.0/28"
+         runtime_cidr = "10.100.0.0/22"
+         support_cidr = "10.100.4.0/28"
+       }
+       "asia-northeast2" = {
+         psc_cidr     = "10.0.3.0/28"
+         runtime_cidr = "10.100.8.0/22"
+         support_cidr = "10.100.12.0/28"
+       }
+     }
+   }
+   ```
+3. `terraform plan` で新リージョンの Apigee インスタンス / PSC サブネット / PSC NEG が計画されることを確認。
+
+| 種別 | リソース |
+|------|---------|
+| グローバル（1 個のまま） | VPC, Apigee Org, Apigee 環境 `prod`, Global LB, IAP, DNS, WIF, Artifact Registry |
+| ネイティブ マルチリージョン（`location = "global"`） | backend Cloud Run（`multi_region_settings { regions = var.regions }`） |
+| リージョナル（`for_each` over `regions`） | `psc-apigee-{region}` サブネット, Apigee peering レンジ, Apigee インスタンス, frontend Cloud Run, PSC NEG, LB の UI/Apigee バックエンド |
 
 ### CI/CD Pipeline
 

@@ -6,19 +6,19 @@
 <AssignMessage name="AM-CleanTokenCounts" continueOnError="false" enabled="true">
   <IgnoreUnresolvedVariables>true</IgnoreUnresolvedVariables>
   <AssignVariable>
-    <Name>brackets_regex</Name>
+    <Name>bracketsRegex</Name>
     <Value>\[\"{0,1}|\"{0,1}\]</Value>
   </AssignVariable>
   <AssignVariable>
-    <Name>prompt_token_count</Name>
-    <Template>{replaceAll(prompt_token_count_raw,brackets_regex,'')}</Template>
+    <Name>promptTokenCount</Name>
+    <Template>{replaceAll(promptTokenCountRaw,bracketsRegex,'')}</Template>
   </AssignVariable>
   <AssignVariable>
-    <Name>candidates_token_count</Name>
-    <Template>{replaceAll(candidates_token_count_raw,brackets_regex,'')}</Template>
+    <Name>candidatesTokenCount</Name>
+    <Template>{replaceAll(candidatesTokenCountRaw,bracketsRegex,'')}</Template>
   </AssignVariable>
   <AssignVariable>
-    <Name>total_token_count</Name>
-    <Template>{replaceAll(total_token_count_raw,brackets_regex,'')}</Template>
+    <Name>totalTokenCount</Name>
+    <Template>{replaceAll(totalTokenCountRaw,bracketsRegex,'')}</Template>
   </AssignVariable>
 </AssignMessage>
