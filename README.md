@@ -61,7 +61,6 @@ graph TB
     end
 
     subgraph URLMap["URL Map"]
-      direction LR
       R_UI["/ui/{name}/*"]
       R_API["/api/*"]
     end
