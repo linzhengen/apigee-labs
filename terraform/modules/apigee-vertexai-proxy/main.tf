@@ -7,6 +7,29 @@ terraform {
   }
 }
 
+locals {
+  # usage_log_topic が未指定の場合は Pub/Sub 連携ポリシーをバンドルに含めない
+  usage_log_enabled = var.usage_log_topic != ""
+
+  usage_log_files = local.usage_log_enabled ? {
+    "apiproxy/policies/JS-BuildUsageLog.xml" = templatefile(
+      "${path.module}/bundle/apiproxy/policies/JS-BuildUsageLog.xml.tpl", {
+        usage_log_max_payload_chars = var.usage_log_max_payload_chars
+        usage_log_include_payloads  = var.usage_log_include_payloads
+      }
+    )
+    "apiproxy/policies/SC-PublishUsageLog.xml" = templatefile(
+      "${path.module}/bundle/apiproxy/policies/SC-PublishUsageLog.xml.tpl", {
+        project_id = var.project_id
+        topic_name = var.usage_log_topic
+      }
+    )
+    "apiproxy/resources/jsc/buildUsageLog.js" = file(
+      "${path.module}/bundle/apiproxy/resources/jsc/buildUsageLog.js"
+    )
+  } : {}
+}
+
 # ============================================================
 # Vertex AI プロキシ専用サービスアカウント
 # google_apigee_api_deployment の service_account に指定し、
@@ -39,7 +62,9 @@ data "archive_file" "proxy_bundle" {
   output_path = "${path.module}/vertexai-proxy.zip"
 
   source {
-    content  = file("${path.module}/bundle/apiproxy/apiproxy.xml")
+    content = templatefile("${path.module}/bundle/apiproxy/apiproxy.xml.tpl", {
+      usage_log_enabled = local.usage_log_enabled
+    })
     filename = "apiproxy/apiproxy.xml"
   }
 
@@ -49,7 +74,9 @@ data "archive_file" "proxy_bundle" {
   }
 
   source {
-    content  = file("${path.module}/bundle/apiproxy/targets/default.xml")
+    content = templatefile("${path.module}/bundle/apiproxy/targets/default.xml.tpl", {
+      usage_log_enabled = local.usage_log_enabled
+    })
     filename = "apiproxy/targets/default.xml"
   }
 
@@ -125,6 +152,15 @@ data "archive_file" "proxy_bundle" {
   source {
     content  = file("${path.module}/bundle/apiproxy/policies/AM-AddQuotaHeaders.xml")
     filename = "apiproxy/policies/AM-AddQuotaHeaders.xml"
+  }
+
+  # Pub/Sub 非同期連携 (usage_log_topic 指定時のみ)
+  dynamic "source" {
+    for_each = local.usage_log_files
+    content {
+      content  = source.value
+      filename = source.key
+    }
   }
 }
 

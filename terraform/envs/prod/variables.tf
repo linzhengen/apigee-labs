@@ -46,3 +46,15 @@ variable "backend_image" {
   type        = string
   default     = "gcr.io/cloudrun/hello"
 }
+
+variable "usage_log_include_payloads" {
+  description = "利用ログにプロンプト・生成文の本文を含めるか (false ならメタデータとトークン数のみ)"
+  type        = bool
+  default     = true
+}
+
+variable "usage_log_max_payload_chars" {
+  description = "利用ログに含めるプロンプト・生成文の最大文字数"
+  type        = number
+  default     = 8000
+}

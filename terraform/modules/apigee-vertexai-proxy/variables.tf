@@ -41,3 +41,21 @@ variable "quota_time_unit" {
   type        = string
   default     = "day"
 }
+
+variable "usage_log_topic" {
+  description = "利用ログ (メッセージ・トークン数) を非同期送信する Pub/Sub トピック名。空文字の場合は Pub/Sub 連携ポリシーをバンドルに含めない"
+  type        = string
+  default     = ""
+}
+
+variable "usage_log_include_payloads" {
+  description = "Pub/Sub へプロンプト・生成文の本文を含めるか。false の場合はメタデータとトークン数のみ送信する"
+  type        = bool
+  default     = true
+}
+
+variable "usage_log_max_payload_chars" {
+  description = "Pub/Sub へ送信するプロンプト・生成文の最大文字数 (超過分は切り詰め)"
+  type        = number
+  default     = 8000
+}

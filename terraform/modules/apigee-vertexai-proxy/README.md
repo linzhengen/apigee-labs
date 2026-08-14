@@ -168,6 +168,66 @@ Vertex AI レスポンスの `usageMetadata` からトークン数を抽出し�
 | `dc_candidates_token_count` | INTEGER | 出力トークン数 |
 | `dc_total_token_count` | INTEGER | 合計トークン数 |
 
+### メッセージ・トークン情報の Pub/Sub 非同期連携
+
+Analytics はディメンションの集計には向くが、プロンプト・生成文そのものは保持しない。
+そこでレスポンスフローから **Pub/Sub へ非同期でパブリッシュ**し、
+`usage-pipeline` モジュールの Cloud Run Functions が BigQuery に記録する。
+
+```
+[TargetEndpoint Response Flow]
+   │
+   ├──► 1. EV-ExtractTokenCounts / AM-CleanTokenCounts (トークン数の抽出)
+   ├──► 2. SC-CollectUsageStats (Analytics)
+   ├──► 3. JS-BuildUsageLog   (送信 JSON の組み立て + Base64 エンコード)
+   └──► 4. SC-PublishUsageLog (Pub/Sub へ送信 ※Response 要素なし = 非同期)
+   │
+   ▼ (クライアントへレスポンス返却)
+```
+
+レイテンシを悪化させないための 3 つのポイント:
+
+1. **fire-and-forget**: `SC-PublishUsageLog` は `<Response>` 要素を持たないため、
+   Apigee は Pub/Sub のレスポンスを待たずに次のステップへ進む。
+2. **エラー無視**: `continueOnError="true"` により Pub/Sub 障害時もクライアントには
+   Vertex AI のレスポンスをそのまま返す。タイムアウトも短め (connect 2s / io 3s) に設定。
+3. **認証**: `<Authentication><GoogleAccessToken>` でデプロイ SA
+   (`apigee-vertexai-proxy-sa`) のアクセストークンを自動付与する。
+   同 SA にはトピックへの `roles/pubsub.publisher` が必要
+   (`usage-pipeline` モジュールの `publisher_members` で付与)。
+
+Pub/Sub REST API は `messages[].data` に Base64 文字列を要求するため、
+`buildUsageLog.js` が UTF-8 変換と Base64 エンコードを行う
+(Apigee の JavaScript は Rhino/ES5 のため `btoa` が使えない)。
+
+送信される JSON (Base64 デコード後):
+
+```json
+{
+  "transaction_id": "apigee-message-id-12345",
+  "timestamp": "2026-08-14T12:00:00.000Z",
+  "user_id": "alice@example.com",
+  "model": "gemini-2.5-flash",
+  "action": "generateContent",
+  "region": "global",
+  "api_proxy": "vertexai-proxy",
+  "api_proxy_revision": "7",
+  "environment": "prod",
+  "status_code": 200,
+  "latency_ms": 1500,
+  "usage_metadata": {
+    "prompt_token_count": 25,
+    "candidates_token_count": 120,
+    "total_token_count": 145
+  },
+  "request": { "prompt": "ユーザーの入力プロンプトテキスト..." },
+  "response": { "generated_text": "Vertex AI からの生成テキスト..." }
+}
+```
+
+`request` / `response` は `usage_log_include_payloads = false` で送信を無効化できる。
+本文は `usage_log_max_payload_chars` (デフォルト 8000 文字) で切り詰められる。
+
 ### 使用量の確認方法
 
 **GCP コンソール:**
@@ -217,6 +277,9 @@ curl -X POST "https://apigee.googleapis.com/v1/organizations/{org}/reports" \
 | `quota_limit` | ユーザーごとのリクエスト数上限 | `number` | `100` |
 | `quota_interval` | クォータのインターバル数 | `number` | `1` |
 | `quota_time_unit` | クォータの時間単位 | `string` | `"day"` |
+| `usage_log_topic` | 利用ログを非同期送信する Pub/Sub トピック名 (空文字で無効) | `string` | `""` |
+| `usage_log_include_payloads` | Pub/Sub にプロンプト・生成文の本文を含めるか | `bool` | `true` |
+| `usage_log_max_payload_chars` | プロンプト・生成文の最大文字数 (超過分は切り詰め) | `number` | `8000` |
 
 ## Usage
 
@@ -265,6 +328,8 @@ module "vertexai_proxy" {
 | 1 | `EV-ExtractTokenCounts` | レスポンスからトークン数を抽出 |
 | 2 | `AM-CleanTokenCounts` | 抽出値の配列括弧を除去 |
 | 3 | `SC-CollectUsageStats` | Analytics にカスタム統計を記録 |
+| 4 | `JS-BuildUsageLog` | Pub/Sub 送信用ペイロードを組み立て (`usage_log_topic` 指定時のみ) |
+| 5 | `SC-PublishUsageLog` | Pub/Sub へ非同期送信 (`usage_log_topic` 指定時のみ) |
 
 ### Response (ProxyEndpoint PreFlow)
 
