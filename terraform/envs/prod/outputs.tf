@@ -18,6 +18,16 @@ output "vertexai_proxy_endpoint" {
   value       = "https://${var.domain}/api/vertexai/v1/models/{model}:generateContent"
 }
 
+output "usage_log_topic" {
+  description = "Apigee が利用ログを送信する Pub/Sub トピック"
+  value       = module.usage_pipeline.topic_name
+}
+
+output "usage_log_bigquery_table" {
+  description = "利用ログが記録される BigQuery テーブル"
+  value       = module.usage_pipeline.bigquery_table
+}
+
 output "dns_name_servers" {
   description = "DNS ゾーンのネームサーバー (ドメインレジストラに設定)"
   value       = module.dns.name_servers

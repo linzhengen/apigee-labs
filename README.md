@@ -39,6 +39,10 @@ IAP 認証・Vertex AI 統合を含む、本番レベルのアーキテクチャ
     ✅ Backend Service (Cloud Run frontend) — /ui/*
     ✅ Backend Service (Apigee PSC NEG)    — /api/*
     → 同一ドメインの IAP Cookie で全パスを保護
+
+  vertexai-proxy はレスポンス返却と並行して利用ログを非同期送信:
+    Pub/Sub → Cloud Run Functions → BigQuery
+    → メッセージ・トークン数の記録がレスポンスタイムに影響しない
 ```
 
 ### Architecture (Mermaid)
@@ -86,6 +90,12 @@ graph TB
         AI["Apigee Instance"]
       end
     end
+
+    subgraph UsagePipeline["利用ログ非同期パイプライン"]
+      PS["Pub/Sub<br/>apigee-usage-logs"]
+      FN["Cloud Run Functions<br/>usage-logger"]
+      BQ["BigQuery<br/>apigee_usage"]
+    end
   end
 
   U -->|"1. HTTPS"| LB
@@ -99,7 +109,49 @@ graph TB
   VP -->|GoogleAccessToken| VAI
   BP -->|GoogleIDToken| CR_BE
   SP -.->|GoogleIDToken| Future
+
+  VP -.->|"ServiceCallout<br/>(fire-and-forget)"| PS
+  PS -->|Eventarc| FN
+  FN --> BQ
 ```
+
+### 利用ログ非同期パイプライン
+
+Vertex AI プロキシは、レスポンス返却と並行してメッセージ・トークン利用量を
+Pub/Sub へ非同期にパブリッシュする。Cloud Run Functions がそれを受け取り
+BigQuery に記録するため、**API レスポンスのレイテンシに影響を与えずに**
+ログ保存・トークン集計を行える。
+
+```
+[Client]
+   │
+   ▼
+┌────────────────────────────────────────────────────────┐
+│ Apigee vertexai-proxy                                  │
+│  1. Request  : Vertex AI へ転送                        │
+│  2. Target   : Vertex AI (Gemini API) 呼び出し         │
+│  3. Response : クライアントへ返却 & Pub/Sub へ非同期送信 │
+└──────────────────────────┬─────────────────────────────┘
+                           │ ServiceCallout (Response 要素なし = 非同期)
+                           ▼
+                 ┌──────────────────┐
+                 │  Pub/Sub Topic   │
+                 └─────────┬────────┘
+                           │ Event Trigger
+                           ▼
+             ┌───────────────────────────┐
+             │ Cloud Run Functions       │
+             │ (メッセージ解析 & 書き込み) │
+             └─────────────┬─────────────┘
+                           ▼
+                 ┌──────────────────┐
+                 │ BigQuery         │
+                 └──────────────────┘
+```
+
+Pub/Sub を挟むことで、トークン数の記録以外の後続処理 (監査ログ保存、
+非同期でのコンテンツ評価、アクセス解析など) をサブスクリプション追加だけで
+拡張できる。詳細は [`terraform/modules/usage-pipeline`](terraform/modules/usage-pipeline/README.md) を参照。
 
 ### Request Flow
 
@@ -249,9 +301,13 @@ apigee-labs/
 │   │   ├── vite.config.ts                # base: /ui/main/
 │   │   └── package.json
 │   │
-│   └── backend/                          # Python FastAPI (Sample Agent)
-│       ├── Dockerfile                    # Multi-stage build
-│       └── main.py                       # /v1/health, /v1/chat
+│   ├── backend/                          # Python FastAPI (Sample Agent)
+│   │   ├── Dockerfile                    # Multi-stage build
+│   │   └── main.py                       # /v1/health, /v1/chat
+│   │
+│   └── usage-logger/                     # Cloud Run Functions (Pub/Sub → BigQuery)
+│       ├── main.py                       # 利用ログを BigQuery に記録
+│       └── requirements.txt
 │
 └── terraform/
     ├── envs/prod/                        # 本番環境
@@ -264,6 +320,7 @@ apigee-labs/
         ├── apigee-vertexai-proxy/        # Vertex AI 専用プロキシ (/api/vertexai)
         ├── apigee-service-proxy/         # 汎用 Cloud Run プロキシ (/api/{service})
         ├── lb/                           # Global HTTPS LB + IAP + パスルーティング
+        ├── usage-pipeline/               # Pub/Sub + Cloud Run Functions + BigQuery
         ├── github-wif/                    # GitHub Actions Workload Identity Federation
         └── iap/                          # IAP OAuth 設定 (gcloud CLI で作成した値を受け渡し)
 ```
@@ -302,6 +359,38 @@ module "mcp_proxy" {
   ...
 }
 ```
+
+### `usage-pipeline` (利用ログの非同期記録)
+
+Apigee → Pub/Sub → Cloud Run Functions → BigQuery のパイプラインを構築する。
+トピック名は Vertex AI プロキシと共有するため、ルート側の `locals` で定義して
+両モジュールに渡す (モジュール間の循環依存を避けるため)。
+
+```hcl
+locals {
+  usage_log_topic = "apigee-usage-logs"
+}
+
+module "vertexai_proxy" {
+  source          = "../../modules/apigee-vertexai-proxy"
+  usage_log_topic = local.usage_log_topic   # 送信側 (ServiceCallout)
+  ...
+}
+
+module "usage_pipeline" {
+  source              = "../../modules/usage-pipeline"
+  topic_name          = local.usage_log_topic   # 受信側 (トピック + 関数 + BigQuery)
+  function_source_dir = "${path.module}/../../../apps/usage-logger"
+
+  publisher_members = [
+    "serviceAccount:${module.vertexai_proxy.service_account_email}",
+  ]
+  ...
+}
+```
+
+プロンプト・生成文を BigQuery に保存したくない場合は
+`usage_log_include_payloads = false` を指定すると、メタデータとトークン数のみ記録する。
 
 ### `lb` (複数フロントエンド + IAP 一括適用)
 

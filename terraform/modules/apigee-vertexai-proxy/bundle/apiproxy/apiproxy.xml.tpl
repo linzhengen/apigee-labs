@@ -16,6 +16,10 @@
     <Policy>AM-CleanTokenCounts</Policy>
     <Policy>SC-CollectUsageStats</Policy>
     <Policy>AM-AddQuotaHeaders</Policy>
+%{ if usage_log_enabled ~}
+    <Policy>JS-BuildUsageLog</Policy>
+    <Policy>SC-PublishUsageLog</Policy>
+%{ endif ~}
   </Policies>
   <ProxyEndpoints>
     <ProxyEndpoint>default</ProxyEndpoint>

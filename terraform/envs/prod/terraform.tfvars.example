@@ -14,3 +14,8 @@ iap_allowed_members = [
 # backend_image  = "asia-northeast1-docker.pkg.dev/my-gcp-project/docker/backend-service:latest"
 
 github_repo = "owner/repo-name"
+
+# 利用ログ (Apigee → Pub/Sub → Cloud Run Functions → BigQuery)
+# プロンプト・生成文を BigQuery に保存したくない場合は false にする。
+# usage_log_include_payloads  = true
+# usage_log_max_payload_chars = 8000

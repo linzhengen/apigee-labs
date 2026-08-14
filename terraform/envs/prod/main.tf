@@ -40,6 +40,14 @@ resource "google_project_service" "apis" {
     "dns.googleapis.com",
     "iam.googleapis.com",
     "aiplatform.googleapis.com",
+    # 利用ログ非同期パイプライン (Apigee → Pub/Sub → Cloud Run Functions → BigQuery)
+    "pubsub.googleapis.com",
+    "bigquery.googleapis.com",
+    "cloudfunctions.googleapis.com",
+    "cloudbuild.googleapis.com",
+    "eventarc.googleapis.com",
+    "storage.googleapis.com",
+    "logging.googleapis.com",
   ])
   service            = each.value
   disable_on_destroy = false
@@ -73,6 +81,11 @@ resource "google_artifact_registry_repository" "docker" {
 #   support_cidr — トラブルシューティング /28 (リージョン毎)
 # ============================================================
 locals {
+  # 利用ログ用 Pub/Sub トピック名。
+  # vertexai_proxy (publisher) と usage_pipeline (トピック作成) の双方が参照するため、
+  # モジュール出力ではなくリテラルで持ち、モジュール間の循環依存を避ける。
+  usage_log_topic = "apigee-usage-logs"
+
   region_networks = {
     "asia-northeast1" = {
       psc_cidr     = "10.0.2.0/28"
@@ -311,7 +324,33 @@ module "vertexai_proxy" {
   org_id           = module.apigee.org_id
   environment_name = "prod"
 
+  # レスポンスフローからメッセージ・トークン情報を Pub/Sub へ非同期送信
+  usage_log_topic             = local.usage_log_topic
+  usage_log_include_payloads  = var.usage_log_include_payloads
+  usage_log_max_payload_chars = var.usage_log_max_payload_chars
+
   depends_on = [module.apigee]
+}
+
+# ============================================================
+# 自作モジュール: 利用ログ非同期パイプライン
+# Apigee → Pub/Sub → Cloud Run Functions → BigQuery
+# ============================================================
+module "usage_pipeline" {
+  source = "../../modules/usage-pipeline"
+
+  project_id          = var.project_id
+  region              = var.regions[0]
+  topic_name          = local.usage_log_topic
+  bigquery_location   = var.regions[0]
+  function_source_dir = "${path.module}/../../../apps/usage-logger"
+
+  # Vertex AI プロキシの SA にトピックへの publish 権限を付与
+  publisher_members = [
+    "serviceAccount:${module.vertexai_proxy.service_account_email}",
+  ]
+
+  depends_on = [google_project_service.apis]
 }
 
 # ============================================================

@@ -1,0 +1,104 @@
+[
+  {
+    "name": "transaction_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Apigee messageid (リクエスト単位の一意 ID)"
+  },
+  {
+    "name": "timestamp",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "Apigee がログを組み立てた時刻 (パーティションキー)"
+  },
+  {
+    "name": "user_id",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "IAP JWT から取得したユーザーのメールアドレス"
+  },
+  {
+    "name": "model",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Vertex AI モデル名 (例: gemini-2.5-flash)"
+  },
+  {
+    "name": "action",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "モデルに対するアクション (例: generateContent)"
+  },
+  {
+    "name": "region",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "呼び出し先リージョン (global またはリージョン名)"
+  },
+  {
+    "name": "api_proxy",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Apigee API プロキシ名"
+  },
+  {
+    "name": "api_proxy_revision",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Apigee API プロキシのリビジョン"
+  },
+  {
+    "name": "environment",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "Apigee 環境名"
+  },
+  {
+    "name": "status_code",
+    "type": "INTEGER",
+    "mode": "NULLABLE",
+    "description": "Vertex AI レスポンスの HTTP ステータスコード"
+  },
+  {
+    "name": "latency_ms",
+    "type": "INTEGER",
+    "mode": "NULLABLE",
+    "description": "クライアント受信からレスポンスまでの経過時間 (ミリ秒)"
+  },
+  {
+    "name": "prompt_token_count",
+    "type": "INTEGER",
+    "mode": "NULLABLE",
+    "description": "入力トークン数"
+  },
+  {
+    "name": "candidates_token_count",
+    "type": "INTEGER",
+    "mode": "NULLABLE",
+    "description": "出力トークン数"
+  },
+  {
+    "name": "total_token_count",
+    "type": "INTEGER",
+    "mode": "NULLABLE",
+    "description": "合計トークン数"
+  },
+  {
+    "name": "request_payload",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "リクエストのプロンプト本文 (usage_log_include_payloads = false の場合は NULL)"
+  },
+  {
+    "name": "response_payload",
+    "type": "STRING",
+    "mode": "NULLABLE",
+    "description": "生成されたテキスト (usage_log_include_payloads = false の場合は NULL)"
+  },
+  {
+    "name": "ingested_at",
+    "type": "TIMESTAMP",
+    "mode": "NULLABLE",
+    "description": "Cloud Run Functions が BigQuery に書き込んだ時刻"
+  }
+]
