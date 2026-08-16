@@ -54,7 +54,7 @@ IAP で保護されたエンドポイントにアクセスするには、IAP ク
 2. `project`/`location` を指定すると SDK が Authorization ヘッダーを ADC アクセストークンで上書きしてしまう → `project`/`location` は指定しない
 3. `project`/`location` 未指定 + カスタム `base_url` では SDK がパスを構築しない → ダミーの `api_key` で回避
 
-以下は `venv/main.py` の実行コード (response 行を除く) に秘密情報をプレースホルダー化した完全な例です:
+以下は 実行コード (response 行を除く) 例です:
 
 ```python
 from google import genai
