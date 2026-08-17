@@ -89,7 +89,7 @@ client = genai.Client(
 )
 ```
 
-> **Note**: Cloud Run / GCE 上ではメタデータサーバーから自動取得する方法もある。`gcloud` CLI が使えない環境では `requests` でメタデータサーバーに問い合わせる。
+> **Note**: Cloud Run / GCE 上ではメタデータサーバーから自動取得する方法もある。
 
 `model` の指定方法は 3 通りある。SDK 内部で `t_model()` → メソッド suffix (`:generateContent`) 付与 → `api_version` 前置 の変換を経て、以下のリクエストパスがプロキシに届く。
 
